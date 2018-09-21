@@ -49,7 +49,6 @@ contract MultiSigVote {
   mapping(bytes32 => mapping(address => bool)) public hasVoted;
   // keeps track of nonces for creating action ids once when a vote has passed for an action
   mapping(uint256 => uint256) public actionNonces;
-  mapping(uint => mapping(uint => bool)) public dicks;
 
   // enum listing all possible actions which can be taken by this contract
   enum Actions {
@@ -124,7 +123,6 @@ contract MultiSigVote {
     minimumVotes = _minimumVotes;
     tokenReleaseDate = _tokenReleaseDate;
     token = _token;
-    dicks[1][1] = true;
   }
 
   /**
@@ -284,7 +282,7 @@ contract MultiSigVote {
     returns (bool)
   {
     require(isVoter[_voter]);
-
+    require(voterCount.sub(1) >= minimumVotes);
     bytes32 _paramHash = keccak256(abi.encodePacked(_voter));
     if (voteHasPassed(Actions.RemoveVoter, _paramHash)) {
       isVoter[_voter] = false;
