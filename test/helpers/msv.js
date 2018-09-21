@@ -475,6 +475,7 @@ const testAddVoterVoteRun = async (msv, voterCandidate, config) => {
     'actionNonce should be incremented by 1 upon successful vote'
   )
   assert(postHasVoted, 'voter should be marked as having voted on this action')
+
   assert.equal(
     postVoterCount.sub(preVoterCount).toString(),
     '1',
@@ -483,6 +484,79 @@ const testAddVoterVoteRun = async (msv, voterCandidate, config) => {
 
   assert(!preIsVoter, 'voterCandidate should be a voter before successful vote')
   assert(postIsVoter, 'voterCandidate should be a voter after successful vote')
+}
+
+const testUpdateMinimumVotesVote = async (msv, minVotes, config) => {
+  const { from } = config
+  const actionId = await calculateActionId(msv, actionEnum.updateMinimumVotes, {
+    type: 'uint256',
+    value: minVotes
+  })
+  const preHasVoted = await msv.hasVoted(actionId, from)
+  const preActionVotes = await msv.actionVotes(actionId)
+  const preActionNonce = await msv.actionNonces(actionEnum.updateMinimumVotes)
+  const preMinVotes = await msv.minimumVotes()
+
+  await msv.updateMinimumVotes(minVotes, config)
+
+  const postHasVoted = await msv.hasVoted(actionId, from)
+  const postActionVotes = await msv.actionVotes(actionId)
+  const postActionNonce = await msv.actionNonces(actionEnum.updateMinimumVotes)
+  const postMinVotes = await msv.minimumVotes()
+
+  assert(!preHasVoted, 'user should have NOT voted on this action before')
+  assert.equal(
+    postActionVotes.sub(preActionVotes).toString(),
+    '1',
+    'actionVotes should be incremented by 1'
+  )
+  assert.equal(
+    preActionNonce.toString(),
+    postActionNonce.toString(),
+    'pre and post actionNonce should match'
+  )
+  assert(postHasVoted, 'voter should be marked as having voted on this action')
+  assert.equal(
+    preMinVotes.toString(),
+    postMinVotes.toString(),
+    'minimumVotes should remain unchanged even after voting'
+  )
+}
+
+const testUpdateMinimumVotesVoteRun = async (msv, minVotes, config) => {
+  const { from } = config
+  const actionId = await calculateActionId(msv, actionEnum.updateMinimumVotes, {
+    type: 'uint256',
+    value: minVotes
+  })
+  const preHasVoted = await msv.hasVoted(actionId, from)
+  const preActionVotes = await msv.actionVotes(actionId)
+  const preActionNonce = await msv.actionNonces(actionEnum.updateMinimumVotes)
+
+  await msv.updateMinimumVotes(minVotes, config)
+
+  const postHasVoted = await msv.hasVoted(actionId, from)
+  const postActionVotes = await msv.actionVotes(actionId)
+  const postActionNonce = await msv.actionNonces(actionEnum.updateMinimumVotes)
+  const postMinVotes = await msv.minimumVotes()
+
+  assert(!preHasVoted, 'user should have NOT voted on this action before')
+  assert.equal(
+    postActionVotes.sub(preActionVotes).toString(),
+    '1',
+    'actionVotes should be incremented by 1'
+  )
+  assert.equal(
+    postActionNonce.sub(preActionNonce).toString(),
+    '1',
+    'actionNonce should be incremented by 1 upon successful vote'
+  )
+  assert(postHasVoted, 'voter should be marked as having voted on this action')
+  assert.equal(
+    postMinVotes.toString(),
+    minVotes.toString(),
+    'minimumVotes should be updated to given argument after successful vote'
+  )
 }
 
 module.exports = {
@@ -496,5 +570,7 @@ module.exports = {
   testRemoveVoterVote,
   testRemoveVoterVoteRun,
   testAddVoterVote,
-  testAddVoterVoteRun
+  testAddVoterVoteRun,
+  testUpdateMinimumVotesVote,
+  testUpdateMinimumVotesVoteRun
 }

@@ -314,6 +314,7 @@ contract MultiSigVote {
   {
     require(_minimumVotes > 1);
     require(_minimumVotes <= voterCount);
+    require(_minimumVotes != minimumVotes);
     bytes32 _paramHash = keccak256(abi.encodePacked(_minimumVotes));
     if (voteHasPassed(Actions.UpdateMinimumVotes, _paramHash)) {
       uint256 _oldMinimumVotes = minimumVotes;
