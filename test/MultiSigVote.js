@@ -22,7 +22,7 @@ const {
 } = require('./helpers/msv')
 const { BN } = web3.utils
 
-describe('when initializing MultiSigVote', () => {
+describe('when initializing contracts', () => {
   contract('MultiSigVote', () => {
     let tkn, msv
 
@@ -36,13 +36,13 @@ describe('when initializing MultiSigVote', () => {
       await testTokenInitialization(tkn, msv)
     })
 
-    it('should start with correct multi sig values', async () => {
+    it('should start with correct multiSig values', async () => {
       await testMultiSigInitialization(msv, tkn)
     })
   })
 })
 
-describe('when adding/removing voters on MultiSigVote', () => {
+describe('when adding/removing voters', () => {
   contract('MultiSigVote', () => {
     const badVoter = voters[2]
     const flimsyVoter = voters[3]
@@ -137,7 +137,7 @@ describe('when adding/removing voters on MultiSigVote', () => {
   })
 })
 
-describe('when changing minimumVotes on MultiSigVote', () => {
+describe('when changing minimumVotes', () => {
   contract('MultiSigVote', () => {
     const minVotes = 3
     const tooLargeMinVotes = 5
@@ -196,7 +196,7 @@ describe('when changing minimumVotes on MultiSigVote', () => {
   })
 })
 
-describe('when pausing/unpausing using MultiSigVote', () => {
+describe('when pausing/unpausing', () => {
   contract('MultiSigVote', () => {
     let tkn, msv
 
@@ -264,7 +264,7 @@ describe('when pausing/unpausing using MultiSigVote', () => {
   })
 })
 
-describe('when handling ether on MultiSigVote', () => {
+describe('when handling ether', () => {
   contract('MultiSigVote', () => {
     const etherRecipient = voters[0]
     const etherAmount = new BN(1).mul(decimals18)
@@ -361,6 +361,129 @@ describe('when handling tokens on MultiSigVote', () => {
 
     it('should perform send tokens action after enough votes', async () => {
       await testSendTokensVoteRun(msv, tkn, etherRecipient, etherAmount, {
+        from: voters[1]
+      })
+    })
+  })
+})
+
+describe('when changing minimumVotes during another vote', () => {
+  contract('MultiSigVote', () => {
+    let msv, tkn
+
+    before('setup contracts', async () => {
+      const contracts = await setupContracts()
+      msv = contracts.msv
+      tkn = contracts.tkn
+    })
+
+    it('should vote to pause token', async () => {
+      await testPauseTokenVote(msv, tkn, {
+        from: voters[0]
+      })
+    })
+
+    it('should update minimum votes', async () => {
+      await testUpdateMinimumVotesVote(msv, 3, {
+        from: voters[0]
+      })
+
+      await testUpdateMinimumVotesVoteRun(msv, 3, {
+        from: voters[1]
+      })
+    })
+
+    it('should require 3 NEW votes to pause token after minimumVotes updated', async () => {
+      await testPauseTokenVote(msv, tkn, {
+        from: voters[0]
+      })
+
+      await testPauseTokenVote(msv, tkn, {
+        from: voters[1]
+      })
+
+      await testPauseTokenVoteRun(msv, tkn, {
+        from: voters[2]
+      })
+    })
+  })
+})
+
+describe('when adding voter during another vote', () => {
+  contract('MultiSigVote', () => {
+    const badVoter = voters[3]
+    let msv, tkn
+
+    before('setup contracts', async () => {
+      const contracts = await setupContracts()
+      msv = contracts.msv
+      tkn = contracts.tkn
+    })
+
+    it('should vote to pause token', async () => {
+      await testPauseTokenVote(msv, tkn, {
+        from: voters[0]
+      })
+    })
+
+    it('should add voter', async () => {
+      await testRemoveVoterVote(msv, badVoter, {
+        from: voters[0]
+      })
+
+      await testRemoveVoterVoteRun(msv, badVoter, {
+        from: voters[1]
+      })
+    })
+
+    it('should require 2 NEW votes to pause token after voter removed', async () => {
+      await testPauseTokenVote(msv, tkn, {
+        from: voters[0]
+      })
+
+      await testPauseTokenVoteRun(msv, tkn, {
+        from: voters[1]
+      })
+    })
+  })
+})
+
+describe('when voting resulting in a successful action and voting again', () => {
+  contract('MultiSigVote', () => {
+    let msv, tkn
+
+    before('setup contracts', async () => {
+      const contracts = await setupContracts()
+      msv = contracts.msv
+      tkn = contracts.tkn
+    })
+
+    it('should vote and pause token after two votes', async () => {
+      await testPauseTokenVote(msv, tkn, {
+        from: voters[0]
+      })
+
+      await testPauseTokenVoteRun(msv, tkn, {
+        from: voters[1]
+      })
+    })
+
+    it('should vote and unpause token for second round of pause votes', async () => {
+      await testUnpauseTokenVote(msv, tkn, {
+        from: voters[0]
+      })
+
+      await testUnpauseTokenVoteRun(msv, tkn, {
+        from: voters[1]
+      })
+    })
+
+    it('should vote and pause token after two votes again', async () => {
+      await testPauseTokenVote(msv, tkn, {
+        from: voters[0]
+      })
+
+      await testPauseTokenVoteRun(msv, tkn, {
         from: voters[1]
       })
     })
