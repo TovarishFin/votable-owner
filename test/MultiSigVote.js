@@ -1,4 +1,4 @@
-const { voters, other, assertRevert } = require('./helpers/general')
+const { voters, other, assertRevert, decimals18 } = require('./helpers/general')
 const {
   setupContracts,
   testTokenInitialization,
@@ -12,8 +12,12 @@ const {
   testAddVoterVote,
   testAddVoterVoteRun,
   testUpdateMinimumVotesVote,
-  testUpdateMinimumVotesVoteRun
+  testUpdateMinimumVotesVoteRun,
+  testReceiveEther,
+  testSendEtherVote,
+  testSendEtherVoteRun
 } = require('./helpers/msv')
+const { BN } = web3.utils
 
 describe('when initializing MultiSigVote', () => {
   contract('MultiSigVote', () => {
@@ -199,14 +203,6 @@ describe('when pausing/unpausing using MultiSigVote', () => {
       msv = contracts.msv
     })
 
-    it('should start with correct token values', async () => {
-      await testTokenInitialization(tkn, msv)
-    })
-
-    it('should start with correct multi sig values', async () => {
-      await testMultiSigInitialization(msv, tkn)
-    })
-
     it('should NOT allow voting for pause token action by a non-voter', async () => {
       await assertRevert(
         testPauseTokenVote(msv, tkn, {
@@ -260,6 +256,55 @@ describe('when pausing/unpausing using MultiSigVote', () => {
     it('should perform unpause token action after enough votes', async () => {
       await testUnpauseTokenVoteRun(msv, tkn, {
         from: voters[2]
+      })
+    })
+  })
+})
+
+describe('when handling ether on MultiSigVote', () => {
+  contract('MultiSigVote', () => {
+    const etherRecipient = voters[0]
+    const etherAmount = new BN(1).mul(decimals18)
+    let msv
+
+    before('setup contracts', async () => {
+      const contracts = await setupContracts()
+      msv = contracts.msv
+    })
+
+    it('should receive ether without problems', async () => {
+      await testReceiveEther(msv, {
+        to: msv.address,
+        from: other,
+        value: etherAmount
+      })
+    })
+
+    it('should NOT allow vote for sending by a non-voter', async () => {
+      await assertRevert(
+        testSendEtherVote(msv, etherRecipient, etherAmount, {
+          from: other
+        })
+      )
+    })
+
+    it('should vote to send ether', async () => {
+      await testSendEtherVote(msv, etherRecipient, etherAmount, {
+        from: voters[0]
+      })
+    })
+
+    it('should NOT vote to send ether again from same address', async () => {
+      await assertRevert(
+        testSendEtherVote(msv, etherRecipient, etherAmount, {
+          from: voters[0]
+        })
+      )
+    })
+
+    it('should perform send ether action after enough votes', async () => {
+      await testSendEtherVoteRun(msv, etherRecipient, etherAmount, {
+        from: voters[1]
       })
     })
   })

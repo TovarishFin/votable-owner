@@ -8,6 +8,7 @@ const {
 const MultiSigVote = artifacts.require('MultiSigVote.sol')
 const ExampleToken = artifacts.require('./mocks/ExampleToken.sol')
 const { soliditySha3 } = web3.utils
+const { BN } = web3.utils
 
 const defaultName = 'ExampleToken'
 const defaultSymbol = 'EXT'
@@ -16,7 +17,6 @@ const defaultVoteRequirement = 2
 const defaultTokenReleaseDate =
   Math.floor(new Date().getTime() / 1000) + 60 * 60 * 24 * 30
 const defaultMultiSigTokenBalance = 5e18
-const defaultMultiSigEtherBalance = 1e18
 
 const actionEnum = {
   transferEther: 0,
@@ -90,12 +90,6 @@ const setupContracts = async () => {
 
   await tkn.transferOwnership(msv.address, {
     from: tempOwner
-  })
-
-  await sendTransaction({
-    to: msv.address,
-    from: tempOwner,
-    value: defaultMultiSigEtherBalance
   })
 
   return {
@@ -175,8 +169,8 @@ const testMultiSigInitialization = async (msv, tkn) => {
   )
   assert.equal(
     etherBalance.toString(),
-    defaultMultiSigEtherBalance.toString(),
-    'MultiSig should have correct ether balance'
+    '0',
+    'MultiSig should NO ether at the start'
   )
 }
 
@@ -559,6 +553,116 @@ const testUpdateMinimumVotesVoteRun = async (msv, minVotes, config) => {
   )
 }
 
+const testReceiveEther = async (msv, config) => {
+  const preEtherBalance = await getEtherBalance(msv.address)
+
+  await sendTransaction(config)
+
+  const postEtherBalance = await getEtherBalance(msv.address)
+
+  assert.equal(
+    new BN(postEtherBalance).sub(new BN(preEtherBalance)).toString(),
+    new BN(config.value.replace('0x', ''), 16).toString(),
+    'MultiSig ether balance should be incremented by tx value'
+  )
+}
+
+const testSendEtherVote = async (msv, etherRecipient, etherAmount, config) => {
+  const { from } = config
+  const actionId = await calculateActionId(
+    msv,
+    actionEnum.transferEther,
+    {
+      type: 'address',
+      value: etherRecipient
+    },
+    { type: 'uint256', value: etherAmount }
+  )
+  const preHasVoted = await msv.hasVoted(actionId, from)
+  const preActionVotes = await msv.actionVotes(actionId)
+  const preActionNonce = await msv.actionNonces(actionEnum.transferEther)
+  const preEtherBalance = await getEtherBalance(msv.address)
+
+  await msv.transferEther(etherRecipient, etherAmount, config)
+
+  const postHasVoted = await msv.hasVoted(actionId, from)
+  const postActionVotes = await msv.actionVotes(actionId)
+  const postActionNonce = await msv.actionNonces(actionEnum.transferEther)
+  const postEtherBalance = await getEtherBalance(msv.address)
+
+  assert(!preHasVoted, 'user should have NOT voted on this action before')
+  assert.equal(
+    postActionVotes.sub(preActionVotes).toString(),
+    '1',
+    'actionVotes should be incremented by 1'
+  )
+  assert.equal(
+    preActionNonce.toString(),
+    postActionNonce.toString(),
+    'pre and post actionNonce should match'
+  )
+  assert(postHasVoted, 'voter should be marked as having voted on this action')
+  assert.equal(
+    preEtherBalance.toString(),
+    postEtherBalance.toString(),
+    'MultiSig ether balance should remain the same after voting'
+  )
+}
+
+const testSendEtherVoteRun = async (
+  msv,
+  etherRecipient,
+  etherAmount,
+  config
+) => {
+  const { from } = config
+  const actionId = await calculateActionId(
+    msv,
+    actionEnum.transferEther,
+    {
+      type: 'address',
+      value: etherRecipient
+    },
+    { type: 'uint256', value: etherAmount }
+  )
+  const preHasVoted = await msv.hasVoted(actionId, from)
+  const preActionVotes = await msv.actionVotes(actionId)
+  const preActionNonce = await msv.actionNonces(actionEnum.transferEther)
+  const preEtherBalance = await getEtherBalance(msv.address)
+  const preRecipientBalance = await getEtherBalance(etherRecipient)
+
+  await msv.transferEther(etherRecipient, etherAmount, config)
+
+  const postHasVoted = await msv.hasVoted(actionId, from)
+  const postActionVotes = await msv.actionVotes(actionId)
+  const postActionNonce = await msv.actionNonces(actionEnum.transferEther)
+  const postEtherBalance = await getEtherBalance(msv.address)
+  const postRecipientBalance = await getEtherBalance(etherRecipient)
+
+  assert(!preHasVoted, 'user should have NOT voted on this action before')
+  assert.equal(
+    postActionVotes.sub(preActionVotes).toString(),
+    '1',
+    'actionVotes should be incremented by 1'
+  )
+  assert.equal(
+    postActionNonce.sub(preActionNonce).toString(),
+    '1',
+    'actionNonce should be incremented by 1 upon successful vote'
+  )
+  assert(postHasVoted, 'voter should be marked as having voted on this action')
+  assert.equal(
+    new BN(preEtherBalance).sub(new BN(postEtherBalance)).toString(),
+    new BN(etherAmount).toString(),
+    'MultiSig ether balance should be decremented by etherAmount'
+  )
+  assert.equal(
+    new BN(postRecipientBalance).sub(new BN(preRecipientBalance)).toString(),
+    new BN(etherAmount).toString(),
+    'etherRecipient ether balance should be incremented by etherAmount'
+  )
+}
+
 module.exports = {
   setupContracts,
   testTokenInitialization,
@@ -572,5 +676,8 @@ module.exports = {
   testAddVoterVote,
   testAddVoterVoteRun,
   testUpdateMinimumVotesVote,
-  testUpdateMinimumVotesVoteRun
+  testUpdateMinimumVotesVoteRun,
+  testReceiveEther,
+  testSendEtherVote,
+  testSendEtherVoteRun
 }
