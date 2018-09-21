@@ -71,7 +71,7 @@ const testTokenInitialization = async tkn => {
 const testMultiSigInitialization = async (msv, tkn) => {
   const minimumVotes = await msv.minimumVotes()
   const tokenReleaseDate = await msv.tokenReleaseDate()
-  const votersCount = await msv.votersCount()
+  const voterCount = await msv.voterCount()
   const token = await msv.token()
 
   for (const voter of voters) {
@@ -91,7 +91,7 @@ const testMultiSigInitialization = async (msv, tkn) => {
     'tokenReleaseDate should match given constructor argument'
   )
   assert.equal(
-    votersCount.toString(),
+    voterCount.toString(),
     voters.length.toString(),
     'voters count should match amount of voters given to constructor'
   )

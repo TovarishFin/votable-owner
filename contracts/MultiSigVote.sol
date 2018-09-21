@@ -21,8 +21,10 @@ import "./interfaces/IPausableToken.sol";
   Each time an action is voted on by a voter, voteHasPassed() is run which creates the appropriate  _actionId. 
   The _actionId is calculated by hashing the following: 
     - Action enum as a uint256 
-    - action nonce (contained in actionNonces for each Action enum)
     - _paramHash which is calculated by hashing any arguments for a function relating to an action
+    - action nonce (contained in actionNonces for each Action enum)
+    - minimumVotes which effectively resets all action votes if minimumVotes has been changed
+    - voterCount which effectively resets all action votesif voterCount has been changed (voter has been added or removed)
   
   Once when the function relating to a given action has been called by enough different voters, the vote has passed and
   the final person voting triggers the action to be performed. As stated above, the action nonce is incremented which
@@ -36,7 +38,7 @@ contract MultiSigVote {
   // unix timestamp indicating when voters tokens can be released
   uint256 public tokenReleaseDate;
   // keeps track of how many voters currently exist
-  uint256 public votersCount;
+  uint256 public voterCount;
   // token on which this wallet operates as owner
   IPausableToken public token;
   // mapping used for voter permissions
@@ -117,7 +119,7 @@ contract MultiSigVote {
       emit VoterAdded(_voters[_i]);
     }
 
-    votersCount = _voters.length;
+    voterCount = _voters.length;
     minimumVotes = _minimumVotes;
     tokenReleaseDate = _tokenReleaseDate;
     token = _token;
@@ -128,6 +130,7 @@ contract MultiSigVote {
     has been met. if minimum vote count has been met, the nonce for a given action will
     be incremented effectively resetting the vote count and whether a voter has voted.
     the function will return true if vote count requirement has been met and false if not.
+    Changing minimumVotes or voterCount also effectively resets votes.
 
     @param _action an Actions enum indicating the action type to be voted on/performed
     @param _paramHash bytes32 keccak256 hash of all function arguments which ensures that
@@ -141,7 +144,7 @@ contract MultiSigVote {
     returns (bool)
   {
     uint256 _actionNonce = actionNonces[uint256(_action)];
-    bytes32 _actionId = keccak256(abi.encodePacked(_action, _actionNonce, _paramHash));
+    bytes32 _actionId = keccak256(abi.encodePacked(_action, _paramHash, _actionNonce, minimumVotes, voterCount));
     require(!hasVoted[_actionId][msg.sender]);
 
     actionVotes[_actionId] = actionVotes[_actionId].add(1);
@@ -258,7 +261,7 @@ contract MultiSigVote {
     bytes32 _paramHash = keccak256(abi.encodePacked(_newVoter));
     if (voteHasPassed(Actions.AddVoter, _paramHash)) {
       isVoter[_newVoter] = true;
-      votersCount = votersCount.add(1);
+      voterCount = voterCount.add(1);
 
       emit VoterAdded(_newVoter);
     }
@@ -282,7 +285,7 @@ contract MultiSigVote {
     bytes32 _paramHash = keccak256(abi.encodePacked(_voter));
     if (voteHasPassed(Actions.RemoveVoter, _paramHash)) {
       isVoter[_voter] = false;
-      votersCount = votersCount.sub(1);
+      voterCount = voterCount.sub(1);
 
       emit VoterRemoved(_voter);
     }
@@ -302,7 +305,7 @@ contract MultiSigVote {
     returns (bool)
   {
     require(_minimumVotes > 1);
-    require(_minimumVotes <= votersCount);
+    require(_minimumVotes <= voterCount);
     bytes32 _paramHash = keccak256(abi.encodePacked(_minimumVotes));
     if (voteHasPassed(Actions.UpdateMinimumVotes, _paramHash)) {
       uint256 _oldMinimumVotes = minimumVotes;
