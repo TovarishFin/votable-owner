@@ -145,7 +145,14 @@ contract MultiSigVote {
   {
     uint256 _actionUint = uint256(_action);
     uint256 _actionNonce = actionNonces[_actionUint];
-    bytes32 _actionId = keccak256(abi.encodePacked(_actionUint, _paramHash, _actionNonce, minimumVotes, voterCount));
+    bytes32 _actionId = keccak256(abi.encodePacked(
+      _actionUint, 
+      _paramHash, 
+      _actionNonce, 
+      minimumVotes, 
+      voterCount
+      )
+    );
     require(!hasVoted[_actionId][msg.sender]);
 
     actionVotes[_actionId] = actionVotes[_actionId].add(1);

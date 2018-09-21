@@ -7,8 +7,10 @@ const {
   testPauseTokenVoteRun,
   testUnpauseTokenVote,
   testUnpauseTokenVoteRun,
-  testRemoveVoter,
-  testRemoveVoterRun
+  testRemoveVoterVote,
+  testRemoveVoterVoteRun,
+  testAddVoterVote,
+  testAddVoterVoteRun
 } = require('./helpers/msv')
 
 describe('when initializing MultiSigVote', () => {
@@ -108,7 +110,7 @@ describe('when pausing/unpausing using MultiSigVote', () => {
 describe('when updating voting parameters of MultiSigVote', () => {
   contract('MultiSigVote', () => {
     const badVoter = voters[2]
-    const anotherBadVoter = voters[3]
+    const flimsyVoter = voters[3]
     let msv
     before('setup contracts', async () => {
       const contracts = await setupContracts()
@@ -117,56 +119,84 @@ describe('when updating voting parameters of MultiSigVote', () => {
 
     it('should NOT vote to remove when NOT a voter', async () => {
       await assertRevert(
-        testRemoveVoter(msv, badVoter, {
+        testRemoveVoterVote(msv, badVoter, {
           from: other
         })
       )
     })
 
     it('should vote to remove a voter', async () => {
-      await testRemoveVoter(msv, badVoter, {
+      await testRemoveVoterVote(msv, badVoter, {
         from: voters[0]
       })
     })
 
     it('should NOT vote to remove voter again from same address', async () => {
       await assertRevert(
-        testRemoveVoter(msv, badVoter, {
+        testRemoveVoterVote(msv, badVoter, {
           from: voters[0]
         })
       )
     })
 
-    it('should not trigger an action being performed when voting for removing different address', async () => {
-      await testRemoveVoter(msv, anotherBadVoter, {
+    it('should NOT trigger an action being performed when voting for removing different address', async () => {
+      await testRemoveVoterVote(msv, flimsyVoter, {
         from: voters[0]
       })
     })
 
     it('should perform remove voter action after enough votes', async () => {
-      await testRemoveVoterRun(msv, badVoter, {
+      await testRemoveVoterVoteRun(msv, badVoter, {
         from: voters[1]
       })
     })
 
     it('previously pending remove vote should be reset and should NOT trigger an action to be performed', async () => {
-      await testRemoveVoter(msv, anotherBadVoter, {
+      await testRemoveVoterVote(msv, flimsyVoter, {
         from: voters[0]
       })
     })
 
     it('should remove another voter after second vote after reset', async () => {
-      await testRemoveVoterRun(msv, anotherBadVoter, {
+      await testRemoveVoterVoteRun(msv, flimsyVoter, {
         from: voters[1]
       })
     })
 
     it('should NOT remove another voter due to minnimumVotes >= voters requirement', async () => {
       await assertRevert(
-        testRemoveVoter(msv, voters[1], {
+        testRemoveVoterVote(msv, voters[1], {
           from: voters[0]
         })
       )
+    })
+
+    it('should NOT vote to add voter which is already voter', async () => {
+      await assertRevert(
+        testAddVoterVote(msv, voters[1], {
+          from: voters[0]
+        })
+      )
+    })
+
+    it('should vote to add voter', async () => {
+      await testAddVoterVote(msv, flimsyVoter, {
+        from: voters[0]
+      })
+    })
+
+    it('should NOT vote to add voter again from same address', async () => {
+      await assertRevert(
+        testAddVoterVote(msv, flimsyVoter, {
+          from: voters[0]
+        })
+      )
+    })
+
+    it('should perform add voter action after enough votes', async () => {
+      await testAddVoterVoteRun(msv, flimsyVoter, {
+        from: voters[1]
+      })
     })
   })
 })

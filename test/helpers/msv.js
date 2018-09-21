@@ -308,7 +308,7 @@ const testUnpauseTokenVoteRun = async (msv, tkn, config) => {
   assert(!postPaused, 'token should NOT be paused after successful vote')
 }
 
-const testRemoveVoter = async (msv, voterToRemove, config) => {
+const testRemoveVoterVote = async (msv, voterToRemove, config) => {
   const { from } = config
   const actionId = await calculateActionId(msv, actionEnum.removeVoter, {
     type: 'address',
@@ -351,7 +351,7 @@ const testRemoveVoter = async (msv, voterToRemove, config) => {
   assert(postIsVoter, 'voterToRemove should still be a voter after voting')
 }
 
-const testRemoveVoterRun = async (msv, voterToRemove, config) => {
+const testRemoveVoterVoteRun = async (msv, voterToRemove, config) => {
   const { from } = config
   const actionId = await calculateActionId(msv, actionEnum.removeVoter, {
     type: 'address',
@@ -397,6 +397,94 @@ const testRemoveVoterRun = async (msv, voterToRemove, config) => {
   )
 }
 
+const testAddVoterVote = async (msv, voterCandidate, config) => {
+  const { from } = config
+  const actionId = await calculateActionId(msv, actionEnum.addVoter, {
+    type: 'address',
+    value: voterCandidate
+  })
+  const preHasVoted = await msv.hasVoted(actionId, from)
+  const preActionVotes = await msv.actionVotes(actionId)
+  const preActionNonce = await msv.actionNonces(actionEnum.addVoter)
+  const preVoterCount = await msv.voterCount()
+  const preIsVoter = await msv.isVoter(voterCandidate)
+
+  await msv.addVoter(voterCandidate, config)
+
+  const postHasVoted = await msv.hasVoted(actionId, from)
+  const postActionVotes = await msv.actionVotes(actionId)
+  const postActionNonce = await msv.actionNonces(actionEnum.addVoter)
+  const postVoterCount = await msv.voterCount()
+  const postIsVoter = await msv.isVoter(voterCandidate)
+
+  assert(!preHasVoted, 'user should have NOT voted on this action before')
+  assert.equal(
+    postActionVotes.sub(preActionVotes).toString(),
+    '1',
+    'actionVotes should be incremented by 1'
+  )
+  assert.equal(
+    preActionNonce.toString(),
+    postActionNonce.toString(),
+    'pre and post actionNonce should match'
+  )
+  assert(postHasVoted, 'voter should be marked as having voted on this action')
+
+  assert.equal(
+    preVoterCount.toString(),
+    postVoterCount.toString(),
+    'voterCount should remain the same after voting'
+  )
+
+  assert(!preIsVoter, 'voterCandidate should NOT be a voter before voting')
+  assert(
+    !postIsVoter,
+    'voterCandidate should still NOT be a voter after voting'
+  )
+}
+
+const testAddVoterVoteRun = async (msv, voterCandidate, config) => {
+  const { from } = config
+  const actionId = await calculateActionId(msv, actionEnum.addVoter, {
+    type: 'address',
+    value: voterCandidate
+  })
+  const preHasVoted = await msv.hasVoted(actionId, from)
+  const preActionVotes = await msv.actionVotes(actionId)
+  const preActionNonce = await msv.actionNonces(actionEnum.addVoter)
+  const preVoterCount = await msv.voterCount()
+  const preIsVoter = await msv.isVoter(voterCandidate)
+
+  await msv.addVoter(voterCandidate, config)
+
+  const postHasVoted = await msv.hasVoted(actionId, from)
+  const postActionVotes = await msv.actionVotes(actionId)
+  const postActionNonce = await msv.actionNonces(actionEnum.addVoter)
+  const postVoterCount = await msv.voterCount()
+  const postIsVoter = await msv.isVoter(voterCandidate)
+
+  assert(!preHasVoted, 'user should have NOT voted on this action before')
+  assert.equal(
+    postActionVotes.sub(preActionVotes).toString(),
+    '1',
+    'actionVotes should be incremented by 1'
+  )
+  assert.equal(
+    postActionNonce.sub(preActionNonce).toString(),
+    '1',
+    'actionNonce should be incremented by 1 upon successful vote'
+  )
+  assert(postHasVoted, 'voter should be marked as having voted on this action')
+  assert.equal(
+    postVoterCount.sub(preVoterCount).toString(),
+    '1',
+    'voterCount should be incremented by 1'
+  )
+
+  assert(!preIsVoter, 'voterCandidate should be a voter before successful vote')
+  assert(postIsVoter, 'voterCandidate should be a voter after successful vote')
+}
+
 module.exports = {
   setupContracts,
   testTokenInitialization,
@@ -405,6 +493,8 @@ module.exports = {
   testPauseTokenVoteRun,
   testUnpauseTokenVote,
   testUnpauseTokenVoteRun,
-  testRemoveVoter,
-  testRemoveVoterRun
+  testRemoveVoterVote,
+  testRemoveVoterVoteRun,
+  testAddVoterVote,
+  testAddVoterVoteRun
 }
