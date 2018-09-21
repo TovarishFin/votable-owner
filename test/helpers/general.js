@@ -1,5 +1,9 @@
 const { BN } = web3.utils
 
+const tempOwner = accounts[0]
+const voters = accounts.slice(1, 4)
+const tokenHolders = accounts.slice(4)
+
 const decimals18 = new BN(10).pow(new BN(18))
 const bigZero = new BN(0)
 const addressZero = `0x${'0'.repeat(40)}`
@@ -149,6 +153,9 @@ const oneBlockMonth = oneBlockDay * 30
 const oneBlockYear = oneBlockMonth * 12
 
 module.exports = {
+  tempOwner,
+  voters,
+  tokenHolders,
   decimals18,
   bigZero,
   addressZero,

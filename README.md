@@ -1,23 +1,5 @@
-# TovarishFin's Smart Contract Boilerplate
-This is a very opinionated set of boilerplate code which includes:
-* smart contract linting (using solium)
-  * config can be found in `.soliumrc.json` & `.soliumignore`
-* js linting (eslint/prettier)
-  * eslint config can be found in `.eslintrc.js` & `.eslintignore`
-  * prettier config can be found in `.prettierrc` & `.prettierignore`
-* commonly used test helper functions (more to come later perhaps...)
-  * these can be found in `test/helpers/general.js`
-* truffle config using `truffle-hdwallet-provider`
-  * configs for **kovan**, **rinkeby**, **ropsten**, and **mainnet** included
-  * also includes config for `eth-gas-reporter`
-* yarn scripts for testing, migration, and other useful things
-* an example smart contract along with tests and a correlating test helper file
-  * test contract is `Example.sol` in `/contracts`
-  * contract test file is `Example.js` in `/test`
-  * test helper file is `exc.js` in `/test/helpers`
-* `.gitattributes` file for indicating solidity code in github
-* OpenZeppelin contracts preinstalled
-* gas reporting option when testing
+# Multi-Sig Vote Contract
+This is a basic implemention of a contract which enables voting on previously designated actions. If an action gets enough votes, the action is performed.
 
 ## Important Notes
 This boilerplate uses the latest [truffle (v5.0.0-beta.0 – Chocolate Sushi)](https://github.com/trufflesuite/truffle/releases/tag/v5.0.0-beta.0)!
@@ -32,6 +14,7 @@ This boilerplate uses yarn rather than npm. Change fork and change this locally 
 
 ## Installing Dependencies
 Everything can be installed through yarn.
+
 `yarn`
 
 ## Using with your Code editor
@@ -119,16 +102,3 @@ yarn migrate:rinkeby
 ```
 yarn migrate:mainnet
 ```
-
-## Extending for your Project
-Fork this repo and do whatever you want with it :)
-For information on how to fork see: https://help.github.com/articles/fork-a-repo/
-
-## Improving this Repo
-If you have some helper functions that you find extremely useful please feel free to open up a PR.
-
-## Issues
-Feel free to open up an issue if you find a problem. I cannot guarantee that I will be keeping this repo super up to date... however, I do use this repo for nearly any new projects I work on... so improvements and maintenance are likely.
-
-## Legal
-This code is given as is, the author is not responsible for any existing bugs. Code is to be used at your own risk. The author is not liable for any damages, monetary or otherwise.
