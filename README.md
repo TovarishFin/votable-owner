@@ -1,4 +1,4 @@
-# Multi-Sig Vote Contract
+# VotableOwner Contract
 This contract implements an easy to use voting system which can easily be verified and understood as opposed to something like [ethereum.org's dao implementation](https://ethereum.org/dao) where transaction payloads are being used.
 
 This implementation ensures that the voters know more clearly what they are voting on. 
