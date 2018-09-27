@@ -86,6 +86,7 @@ function doThing(
 There is definitely a problem here where it is rather difficult to track vote counts currently. Perhaps in the future a DApp will be developed to go along with the contract as an aid for less experienced voters.
 
 ## Gas Usage
+```
 ·----------------------------------------------------------------------|----------------------------·
 |                                 Gas                                  ·  Block limit: 6721975 gas  │
 ········································|······························|·····························
@@ -129,6 +130,7 @@ There is definitely a problem here where it is rather difficult to track vote co
 ·················|······················|·········|··········|·········|·············|···············
 |  VotableOwner  ·  updateMinimumVotes  ·  65416  ·   77222  ·  71319  ·          4  ·        0.12  │
 ·----------------|----------------------|---------|----------|---------|-------------|--------------·
+```
 
 ## Important Notes
 This boilerplate uses the latest [truffle (v5.0.0-beta.0 – Chocolate Sushi)](https://github.com/trufflesuite/truffle/releases/tag/v5.0.0-beta.0)!
