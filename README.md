@@ -28,6 +28,8 @@ This implementation ensures that the voters know more clearly what they are voti
 This contract would be meant for a rather close knit group who can agree on performing an action previous to casting votes.
 An example of this would be perhaps management of a company which controls owner permissions of a a smart contract ecosystem. This contract (once audited) could the serve as a replacement for a secure single owner account system.
 
+This contract might also be quite useful for upgradeable proxies where too much trust is put into an owner. Rather than having an owner who can completely change the proxy implementation, it can be voted on through this contract.
+
 ### Example of Use
 1. Company X has mostly finished development of their ecosystem. They will need an owner who can do special permissioned actions such as pausing or unpausing a token.
 1. They have decided that keeping a single account safe is too much of a risk and would rather have 5 different accounts which could vote together in order to perform owner actions.
