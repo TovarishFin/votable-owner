@@ -1,6 +1,5 @@
 pragma solidity ^0.4.24;
 
-import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./interfaces/IPausableToken.sol";
 
 /**
@@ -31,7 +30,6 @@ import "./interfaces/IPausableToken.sol";
   effectively resets all of the voting logic for a given action.
  */
 contract MultiSigVote {
-  using SafeMath for uint256;
   
   // minimum votes needed for any action to successfully run
   uint256 public minimumVotes;
@@ -47,34 +45,20 @@ contract MultiSigVote {
   mapping(bytes32 => uint256) public actionVotes;
   // keeps track of whether a voter has already voted for a given action
   mapping(bytes32 => mapping(address => bool)) public hasVoted;
-  // keeps track of nonces for creating action ids once when a vote has passed for an action
-  mapping(uint256 => uint256) public actionNonces;
-
-  // enum listing all possible actions which can be taken by this contract
-  enum Actions {
-    TransferEther,
-    PauseToken,
-    UnpauseToken,
-    TransferTokens,
-    AddVoter,
-    RemoveVoter,
-    UpdateMinimumVotes
-  }
+  // increments every time a vote has been passed reseting all pending votes
+  uint256 public actionNonce;
 
   event VotersTokensTransferred(
     address recipient,
     uint256 value
   );
-
   event VotersEtherTransferred(
     address recipient,
     uint256 value
   );
-
   event VoterAdded(
     address voter
   );
-
   event VoterRemoved(
     address voter
   );
@@ -83,9 +67,9 @@ contract MultiSigVote {
     uint256 newMinimumVotes
   );
 
-  modifier onlyVoters() {
+  modifier onlyVoter() {
     require(isVoter[msg.sender]);
-    
+
     _;
   }
 
@@ -125,42 +109,32 @@ contract MultiSigVote {
     token = _token;
   }
 
+  event Test(bytes32 id);
   /**
     @dev this function increments the vote count and checks if minimum votes requirement
     has been met. if minimum vote count has been met, the nonce for a given action will
     be incremented effectively resetting the vote count and whether a voter has voted.
     the function will return true if vote count requirement has been met and false if not.
     Changing minimumVotes or voterCount also effectively resets votes.
-
-    @param _action an Actions enum indicating the action type to be voted on/performed
-    @param _paramHash bytes32 keccak256 hash of all function arguments which ensures that
-    all voters vote on the same action with the same arguments.
    */
-  function voteHasPassed(
-    Actions _action,
-    bytes32 _paramHash
-  ) 
+  function voteHasPassed() 
     internal
     returns (bool)
   {
-    uint256 _actionUint = uint256(_action);
-    uint256 _actionNonce = actionNonces[_actionUint];
     bytes32 _actionId = keccak256(abi.encodePacked(
-      _actionUint, 
-      _paramHash, 
-      _actionNonce, 
-      minimumVotes, 
-      voterCount
-      )
-    );
+      msg.data,
+      actionNonce
+    ));
+    emit Test(_actionId);
+
     require(!hasVoted[_actionId][msg.sender]);
 
-    actionVotes[_actionId] = actionVotes[_actionId].add(1);
+    actionVotes[_actionId]++;
     hasVoted[_actionId][msg.sender] = true;
 
     if (actionVotes[_actionId] >= minimumVotes) {
-      actionNonces[_actionUint] = actionNonces[_actionUint].add(1);
-      
+      actionNonce++;
+
       return true;
     }
 
@@ -177,13 +151,12 @@ contract MultiSigVote {
     uint256 _value
   )
     external
-    onlyVoters
+    onlyVoter
     returns (bool)
   {
     require(_recipient != address(0));
 
-    bytes32 _paramHash = keccak256(abi.encodePacked(_recipient, _value));
-    if (voteHasPassed(Actions.TransferEther, _paramHash)) {
+    if (voteHasPassed()) {
       _recipient.transfer(_value);
 
       emit VotersEtherTransferred(
@@ -200,10 +173,10 @@ contract MultiSigVote {
    */
   function pauseToken()
     external
-    onlyVoters
+    onlyVoter
     returns (bool)
   {
-    if (voteHasPassed(Actions.PauseToken, 0x0)) {
+    if (voteHasPassed()) {
       token.pause();
     }
 
@@ -215,10 +188,10 @@ contract MultiSigVote {
    */
   function unpauseToken()
     external
-    onlyVoters
+    onlyVoter
     returns (bool)
   {
-    if (voteHasPassed(Actions.UnpauseToken, 0x0)) {
+    if (voteHasPassed()) {
       token.unpause();
     }
     
@@ -235,13 +208,12 @@ contract MultiSigVote {
     uint256 _value
   )
     external
-    onlyVoters
+    onlyVoter
     returns (bool)
   {
     require( block.timestamp > tokenReleaseDate);
 
-    bytes32 _paramHash = keccak256(abi.encodePacked(_recipient, _value));
-    if (voteHasPassed(Actions.TransferTokens, _paramHash)) {
+    if (voteHasPassed()) {
       token.transfer(_recipient, _value);
 
       emit VotersTokensTransferred(
@@ -261,15 +233,14 @@ contract MultiSigVote {
     address _newVoter
   )
     external
-    onlyVoters
+    onlyVoter
     returns (bool)
   {
     require(!isVoter[_newVoter]);
 
-    bytes32 _paramHash = keccak256(abi.encodePacked(_newVoter));
-    if (voteHasPassed(Actions.AddVoter, _paramHash)) {
+    if (voteHasPassed()) {
       isVoter[_newVoter] = true;
-      voterCount = voterCount.add(1);
+      voterCount++;
 
       emit VoterAdded(_newVoter);
     }
@@ -285,15 +256,15 @@ contract MultiSigVote {
     address _voter
   )
     external
-    onlyVoters
+    onlyVoter
     returns (bool)
   {
     require(isVoter[_voter]);
-    require(voterCount.sub(1) >= minimumVotes);
-    bytes32 _paramHash = keccak256(abi.encodePacked(_voter));
-    if (voteHasPassed(Actions.RemoveVoter, _paramHash)) {
+    require(voterCount - 1 >= minimumVotes);
+
+    if (voteHasPassed()) {
       isVoter[_voter] = false;
-      voterCount = voterCount.sub(1);
+      voterCount--;
 
       emit VoterRemoved(_voter);
     }
@@ -309,14 +280,14 @@ contract MultiSigVote {
     uint256 _minimumVotes
   )
     external
-    onlyVoters
+    onlyVoter
     returns (bool)
   {
     require(_minimumVotes > 1);
     require(_minimumVotes <= voterCount);
     require(_minimumVotes != minimumVotes);
-    bytes32 _paramHash = keccak256(abi.encodePacked(_minimumVotes));
-    if (voteHasPassed(Actions.UpdateMinimumVotes, _paramHash)) {
+
+    if (voteHasPassed()) {
       uint256 _oldMinimumVotes = minimumVotes;
       minimumVotes = _minimumVotes;
 

@@ -20,43 +20,17 @@ const defaultTokenReleaseDate =
   Math.floor(new Date().getTime() / 1000) + 60 * 60 * 24 * 30
 const defaultMultiSigTokenBalance = 5e18
 
-const actionEnum = {
-  transferEther: 0,
-  pauseToken: 1,
-  unpauseToken: 2,
-  transferTokens: 3,
-  addVoter: 4,
-  removeVoter: 5,
-  updateMinimumVotes: 6
-}
-
-const calculateActionId = async (msv, actionUint, ...functionArgs) => {
-  const actionNonce = await msv.actionNonces(actionUint)
-  const minimumVotes = await msv.minimumVotes()
-  const voterCount = await msv.voterCount()
-  const paramHash =
-    functionArgs.length > 0 ? soliditySha3(...functionArgs) : '0x0'
+const calculateActionId = async (msv, callData) => {
+  const actionNonce = await msv.actionNonce()
 
   const actionId = soliditySha3(
     {
-      type: 'uint256',
-      value: actionUint
-    },
-    {
-      type: 'bytes32',
-      value: paramHash
+      type: 'bytes',
+      value: callData
     },
     {
       type: 'uint256',
       value: actionNonce
-    },
-    {
-      type: 'uint256',
-      value: minimumVotes
-    },
-    {
-      type: 'uint256',
-      value: voterCount
     }
   )
 
@@ -178,17 +152,18 @@ const testMultiSigInitialization = async (msv, tkn) => {
 
 const testPauseTokenVote = async (msv, tkn, config) => {
   const { from } = config
-  const actionId = await calculateActionId(msv, actionEnum.pauseToken)
+  const callData = msv.contract.methods.pauseToken().encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.pauseToken)
+  const preActionNonce = await msv.actionNonce()
   const prePaused = await tkn.paused()
 
   await msv.pauseToken(config)
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.pauseToken)
+  const postActionNonce = await msv.actionNonce()
   const postPaused = await tkn.paused()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -210,17 +185,18 @@ const testPauseTokenVote = async (msv, tkn, config) => {
 
 const testPauseTokenVoteRun = async (msv, tkn, config) => {
   const { from } = config
-  const actionId = await calculateActionId(msv, actionEnum.pauseToken)
+  const callData = msv.contract.methods.pauseToken().encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.pauseToken)
+  const preActionNonce = await msv.actionNonce()
   const prePaused = await tkn.paused()
 
   await msv.pauseToken(config)
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.pauseToken)
+  const postActionNonce = await msv.actionNonce()
   const postPaused = await tkn.paused()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -242,17 +218,18 @@ const testPauseTokenVoteRun = async (msv, tkn, config) => {
 
 const testUnpauseTokenVote = async (msv, tkn, config) => {
   const { from } = config
-  const actionId = await calculateActionId(msv, actionEnum.unpauseToken)
+  const callData = msv.contract.methods.unpauseToken().encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.unpauseToken)
+  const preActionNonce = await msv.actionNonce()
   const prePaused = await tkn.paused()
 
   await msv.unpauseToken(config)
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.unpauseToken)
+  const postActionNonce = await msv.actionNonce()
   const postPaused = await tkn.paused()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -274,17 +251,18 @@ const testUnpauseTokenVote = async (msv, tkn, config) => {
 
 const testUnpauseTokenVoteRun = async (msv, tkn, config) => {
   const { from } = config
-  const actionId = await calculateActionId(msv, actionEnum.unpauseToken)
+  const callData = msv.contract.methods.unpauseToken().encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.unpauseToken)
+  const preActionNonce = await msv.actionNonce()
   const prePaused = await tkn.paused()
 
   await msv.unpauseToken(config)
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.unpauseToken)
+  const postActionNonce = await msv.actionNonce()
   const postPaused = await tkn.paused()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -306,13 +284,11 @@ const testUnpauseTokenVoteRun = async (msv, tkn, config) => {
 
 const testRemoveVoterVote = async (msv, voterToRemove, config) => {
   const { from } = config
-  const actionId = await calculateActionId(msv, actionEnum.removeVoter, {
-    type: 'address',
-    value: voterToRemove
-  })
+  const callData = msv.contract.methods.removeVoter(voterToRemove).encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.removeVoter)
+  const preActionNonce = await msv.actionNonce()
   const preVoterCount = await msv.voterCount()
   const preIsVoter = await msv.isVoter(voterToRemove)
 
@@ -320,7 +296,7 @@ const testRemoveVoterVote = async (msv, voterToRemove, config) => {
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.removeVoter)
+  const postActionNonce = await msv.actionNonce()
   const postVoterCount = await msv.voterCount()
   const postIsVoter = await msv.isVoter(voterToRemove)
 
@@ -349,13 +325,11 @@ const testRemoveVoterVote = async (msv, voterToRemove, config) => {
 
 const testRemoveVoterVoteRun = async (msv, voterToRemove, config) => {
   const { from } = config
-  const actionId = await calculateActionId(msv, actionEnum.removeVoter, {
-    type: 'address',
-    value: voterToRemove
-  })
+  const callData = msv.contract.methods.removeVoter(voterToRemove).encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.removeVoter)
+  const preActionNonce = await msv.actionNonce()
   const preVoterCount = await msv.voterCount()
   const preIsVoter = await msv.isVoter(voterToRemove)
 
@@ -363,7 +337,7 @@ const testRemoveVoterVoteRun = async (msv, voterToRemove, config) => {
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.removeVoter)
+  const postActionNonce = await msv.actionNonce()
   const postVoterCount = await msv.voterCount()
   const postIsVoter = await msv.isVoter(voterToRemove)
 
@@ -395,13 +369,11 @@ const testRemoveVoterVoteRun = async (msv, voterToRemove, config) => {
 
 const testAddVoterVote = async (msv, voterCandidate, config) => {
   const { from } = config
-  const actionId = await calculateActionId(msv, actionEnum.addVoter, {
-    type: 'address',
-    value: voterCandidate
-  })
+  const callData = msv.contract.methods.addVoter(voterCandidate).encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.addVoter)
+  const preActionNonce = await msv.actionNonce()
   const preVoterCount = await msv.voterCount()
   const preIsVoter = await msv.isVoter(voterCandidate)
 
@@ -409,7 +381,7 @@ const testAddVoterVote = async (msv, voterCandidate, config) => {
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.addVoter)
+  const postActionNonce = await msv.actionNonce()
   const postVoterCount = await msv.voterCount()
   const postIsVoter = await msv.isVoter(voterCandidate)
 
@@ -441,13 +413,11 @@ const testAddVoterVote = async (msv, voterCandidate, config) => {
 
 const testAddVoterVoteRun = async (msv, voterCandidate, config) => {
   const { from } = config
-  const actionId = await calculateActionId(msv, actionEnum.addVoter, {
-    type: 'address',
-    value: voterCandidate
-  })
+  const callData = msv.contract.methods.addVoter(voterCandidate).encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.addVoter)
+  const preActionNonce = await msv.actionNonce()
   const preVoterCount = await msv.voterCount()
   const preIsVoter = await msv.isVoter(voterCandidate)
 
@@ -455,7 +425,7 @@ const testAddVoterVoteRun = async (msv, voterCandidate, config) => {
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.addVoter)
+  const postActionNonce = await msv.actionNonce()
   const postVoterCount = await msv.voterCount()
   const postIsVoter = await msv.isVoter(voterCandidate)
 
@@ -484,20 +454,18 @@ const testAddVoterVoteRun = async (msv, voterCandidate, config) => {
 
 const testUpdateMinimumVotesVote = async (msv, minVotes, config) => {
   const { from } = config
-  const actionId = await calculateActionId(msv, actionEnum.updateMinimumVotes, {
-    type: 'uint256',
-    value: minVotes
-  })
+  const callData = msv.contract.methods.updateMinimumVotes(minVotes).encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.updateMinimumVotes)
+  const preActionNonce = await msv.actionNonce()
   const preMinVotes = await msv.minimumVotes()
 
   await msv.updateMinimumVotes(minVotes, config)
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.updateMinimumVotes)
+  const postActionNonce = await msv.actionNonce()
   const postMinVotes = await msv.minimumVotes()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -521,19 +489,17 @@ const testUpdateMinimumVotesVote = async (msv, minVotes, config) => {
 
 const testUpdateMinimumVotesVoteRun = async (msv, minVotes, config) => {
   const { from } = config
-  const actionId = await calculateActionId(msv, actionEnum.updateMinimumVotes, {
-    type: 'uint256',
-    value: minVotes
-  })
+  const callData = msv.contract.methods.updateMinimumVotes(minVotes).encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.updateMinimumVotes)
+  const preActionNonce = await msv.actionNonce()
 
   await msv.updateMinimumVotes(minVotes, config)
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.updateMinimumVotes)
+  const postActionNonce = await msv.actionNonce()
   const postMinVotes = await msv.minimumVotes()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -573,18 +539,13 @@ const testReceiveEther = async (msv, config) => {
 
 const testSendEtherVote = async (msv, etherRecipient, etherAmount, config) => {
   const { from } = config
-  const actionId = await calculateActionId(
-    msv,
-    actionEnum.transferEther,
-    {
-      type: 'address',
-      value: etherRecipient
-    },
-    { type: 'uint256', value: etherAmount }
-  )
+  const callData = msv.contract.methods
+    .transferEther(etherRecipient, etherAmount)
+    .encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.transferEther)
+  const preActionNonce = await msv.actionNonce()
   const preContractEtherBalance = await getEtherBalance(msv.address)
   const preRecipientEtherBalance = await getEtherBalance(msv.address)
 
@@ -592,7 +553,7 @@ const testSendEtherVote = async (msv, etherRecipient, etherAmount, config) => {
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.transferEther)
+  const postActionNonce = await msv.actionNonce()
   const postContractEtherBalance = await getEtherBalance(msv.address)
   const postRecipientEtherBalance = await getEtherBalance(msv.address)
 
@@ -627,18 +588,13 @@ const testSendEtherVoteRun = async (
   config
 ) => {
   const { from } = config
-  const actionId = await calculateActionId(
-    msv,
-    actionEnum.transferEther,
-    {
-      type: 'address',
-      value: etherRecipient
-    },
-    { type: 'uint256', value: etherAmount }
-  )
+  const callData = msv.contract.methods
+    .transferEther(etherRecipient, etherAmount)
+    .encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.transferEther)
+  const preActionNonce = await msv.actionNonce()
   const preContractEtherBalance = await getEtherBalance(msv.address)
   const preRecipientBalance = await getEtherBalance(etherRecipient)
 
@@ -646,7 +602,7 @@ const testSendEtherVoteRun = async (
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.transferEther)
+  const postActionNonce = await msv.actionNonce()
   const postContractEtherBalance = await getEtherBalance(msv.address)
   const postRecipientBalance = await getEtherBalance(etherRecipient)
 
@@ -684,18 +640,13 @@ const testSendTokensVote = async (
   config
 ) => {
   const { from } = config
-  const actionId = await calculateActionId(
-    msv,
-    actionEnum.transferTokens,
-    {
-      type: 'address',
-      value: tokenRecipient
-    },
-    { type: 'uint256', value: tokenAmount }
-  )
+  const callData = msv.contract.methods
+    .transferTokens(tokenRecipient, tokenAmount)
+    .encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.transferTokens)
+  const preActionNonce = await msv.actionNonce()
   const preContractTokenBalance = await tkn.balanceOf(msv.address)
   const preRecipientTokenBalance = await tkn.balanceOf(tokenRecipient)
 
@@ -703,7 +654,7 @@ const testSendTokensVote = async (
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.transferTokens)
+  const postActionNonce = await msv.actionNonce()
   const postContractTokenBalance = await tkn.balanceOf(msv.address)
   const postRecipientTokenBalance = await tkn.balanceOf(tokenRecipient)
 
@@ -740,18 +691,13 @@ const testSendTokensVoteRun = async (
   config
 ) => {
   const { from } = config
-  const actionId = await calculateActionId(
-    msv,
-    actionEnum.transferTokens,
-    {
-      type: 'address',
-      value: tokenRecipient
-    },
-    { type: 'uint256', value: tokenAmount }
-  )
+  const callData = msv.contract.methods
+    .transferTokens(tokenRecipient, tokenAmount)
+    .encodeABI()
+  const actionId = await calculateActionId(msv, callData)
   const preHasVoted = await msv.hasVoted(actionId, from)
   const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonces(actionEnum.transferTokens)
+  const preActionNonce = await msv.actionNonce()
   const preContractTokenBalance = await tkn.balanceOf(msv.address)
   const preRecipientTokenBalance = await tkn.balanceOf(tokenRecipient)
 
@@ -759,7 +705,7 @@ const testSendTokensVoteRun = async (
 
   const postHasVoted = await msv.hasVoted(actionId, from)
   const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonces(actionEnum.transferTokens)
+  const postActionNonce = await msv.actionNonce()
   const postContractTokenBalance = await tkn.balanceOf(msv.address)
   const postRecipientTokenBalance = await tkn.balanceOf(tokenRecipient)
 
