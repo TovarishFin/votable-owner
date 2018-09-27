@@ -2,7 +2,7 @@ const { voters, other, assertRevert, decimals18 } = require('./helpers/general')
 const {
   setupContracts,
   testTokenInitialization,
-  testMultiSigInitialization,
+  testVotableOwnerInitialization,
   testPauseTokenVote,
   testPauseTokenVoteRun,
   testUnpauseTokenVote,
@@ -19,89 +19,89 @@ const {
   testSendTokensVote,
   testSendTokensVoteRun,
   warpToTokenReleaseDate
-} = require('./helpers/msv')
+} = require('./helpers/vbo')
 const { BN } = web3.utils
 
 describe('when initializing contracts', () => {
-  contract('MultiSigVote', () => {
-    let tkn, msv
+  contract('VotableOwner', () => {
+    let tkn, vbo
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
       tkn = contracts.tkn
-      msv = contracts.msv
+      vbo = contracts.vbo
     })
 
     it('should start with correct token values', async () => {
-      await testTokenInitialization(tkn, msv)
+      await testTokenInitialization(tkn, vbo)
     })
 
-    it('should start with correct multiSig values', async () => {
-      await testMultiSigInitialization(msv, tkn)
+    it('should start with correct VotableOwner values', async () => {
+      await testVotableOwnerInitialization(vbo, tkn)
     })
   })
 })
 
 describe('when adding/removing voters', () => {
-  contract('MultiSigVote', () => {
+  contract('VotableOwner', () => {
     const badVoter = voters[2]
     const flimsyVoter = voters[3]
-    let msv
+    let vbo
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
-      msv = contracts.msv
+      vbo = contracts.vbo
     })
 
     it('should NOT vote to remove when NOT a voter', async () => {
       await assertRevert(
-        testRemoveVoterVote(msv, badVoter, {
+        testRemoveVoterVote(vbo, badVoter, {
           from: other
         })
       )
     })
 
     it('should vote to remove a voter', async () => {
-      await testRemoveVoterVote(msv, badVoter, {
+      await testRemoveVoterVote(vbo, badVoter, {
         from: voters[0]
       })
     })
 
     it('should NOT vote to remove voter again from same address', async () => {
       await assertRevert(
-        testRemoveVoterVote(msv, badVoter, {
+        testRemoveVoterVote(vbo, badVoter, {
           from: voters[0]
         })
       )
     })
 
     it('should NOT trigger an action being performed when voting for removing different address', async () => {
-      await testRemoveVoterVote(msv, flimsyVoter, {
+      await testRemoveVoterVote(vbo, flimsyVoter, {
         from: voters[0]
       })
     })
 
     it('should perform remove voter action after enough votes', async () => {
-      await testRemoveVoterVoteRun(msv, badVoter, {
+      await testRemoveVoterVoteRun(vbo, badVoter, {
         from: voters[1]
       })
     })
 
     it('previously pending remove vote should be reset and should NOT trigger an action to be performed', async () => {
-      await testRemoveVoterVote(msv, flimsyVoter, {
+      await testRemoveVoterVote(vbo, flimsyVoter, {
         from: voters[0]
       })
     })
 
     it('should remove another voter after second vote after reset', async () => {
-      await testRemoveVoterVoteRun(msv, flimsyVoter, {
+      await testRemoveVoterVoteRun(vbo, flimsyVoter, {
         from: voters[1]
       })
     })
 
     it('should NOT remove another voter due to minnimumVotes >= voters requirement', async () => {
       await assertRevert(
-        testRemoveVoterVote(msv, voters[1], {
+        testRemoveVoterVote(vbo, voters[1], {
           from: voters[0]
         })
       )
@@ -109,28 +109,28 @@ describe('when adding/removing voters', () => {
 
     it('should NOT vote to add voter which is already voter', async () => {
       await assertRevert(
-        testAddVoterVote(msv, voters[1], {
+        testAddVoterVote(vbo, voters[1], {
           from: voters[0]
         })
       )
     })
 
     it('should vote to add voter', async () => {
-      await testAddVoterVote(msv, flimsyVoter, {
+      await testAddVoterVote(vbo, flimsyVoter, {
         from: voters[0]
       })
     })
 
     it('should NOT vote to add voter again from same address', async () => {
       await assertRevert(
-        testAddVoterVote(msv, flimsyVoter, {
+        testAddVoterVote(vbo, flimsyVoter, {
           from: voters[0]
         })
       )
     })
 
     it('should perform add voter action after enough votes', async () => {
-      await testAddVoterVoteRun(msv, flimsyVoter, {
+      await testAddVoterVoteRun(vbo, flimsyVoter, {
         from: voters[1]
       })
     })
@@ -138,20 +138,20 @@ describe('when adding/removing voters', () => {
 })
 
 describe('when changing minimumVotes', () => {
-  contract('MultiSigVote', () => {
+  contract('VotableOwner', () => {
     const minVotes = 3
     const tooLargeMinVotes = 5
     const tooSmallMinVotes = 1
-    let msv
+    let vbo
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
-      msv = contracts.msv
+      vbo = contracts.vbo
     })
 
     it('should NOT vote to update minimum votes if NOT voter', async () => {
       await assertRevert(
-        testUpdateMinimumVotesVote(msv, minVotes, {
+        testUpdateMinimumVotesVote(vbo, minVotes, {
           from: other
         })
       )
@@ -159,7 +159,7 @@ describe('when changing minimumVotes', () => {
 
     it('should NOT vote to update minimum votes if more than voters', async () => {
       await assertRevert(
-        testUpdateMinimumVotesVote(msv, tooLargeMinVotes, {
+        testUpdateMinimumVotesVote(vbo, tooLargeMinVotes, {
           from: voters[0]
         })
       )
@@ -167,29 +167,29 @@ describe('when changing minimumVotes', () => {
 
     it('should NOT vote to update minimum votes if less than 2', async () => {
       await assertRevert(
-        testUpdateMinimumVotesVote(msv, tooSmallMinVotes, {
+        testUpdateMinimumVotesVote(vbo, tooSmallMinVotes, {
           from: voters[0]
         })
       )
     })
 
     it('should NOT vote to update minimum votes if same as current', async () => {
-      const sameMinVotes = await msv.minimumVotes()
+      const sameMinVotes = await vbo.minimumVotes()
       await assertRevert(
-        testUpdateMinimumVotesVote(msv, sameMinVotes, {
+        testUpdateMinimumVotesVote(vbo, sameMinVotes, {
           from: voters[0]
         })
       )
     })
 
     it('should vote to update minimum votes', async () => {
-      await testUpdateMinimumVotesVote(msv, minVotes, {
+      await testUpdateMinimumVotesVote(vbo, minVotes, {
         from: voters[0]
       })
     })
 
     it('should perform update minimum votes action after enough votes', async () => {
-      await testUpdateMinimumVotesVoteRun(msv, minVotes, {
+      await testUpdateMinimumVotesVoteRun(vbo, minVotes, {
         from: voters[1]
       })
     })
@@ -197,67 +197,67 @@ describe('when changing minimumVotes', () => {
 })
 
 describe('when pausing/unpausing', () => {
-  contract('MultiSigVote', () => {
-    let tkn, msv
+  contract('VotableOwner', () => {
+    let tkn, vbo
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
       tkn = contracts.tkn
-      msv = contracts.msv
+      vbo = contracts.vbo
     })
 
     it('should NOT allow voting for pause token action by a non-voter', async () => {
       await assertRevert(
-        testPauseTokenVote(msv, tkn, {
+        testPauseTokenVote(vbo, tkn, {
           from: other
         })
       )
     })
 
     it('should vote to pause token', async () => {
-      await testPauseTokenVote(msv, tkn, {
+      await testPauseTokenVote(vbo, tkn, {
         from: voters[0]
       })
     })
 
     it('should NOT vote to pause again from same address', async () => {
       await assertRevert(
-        testPauseTokenVote(msv, tkn, {
+        testPauseTokenVote(vbo, tkn, {
           from: voters[0]
         })
       )
     })
 
     it('should perform pause token action after enough votes', async () => {
-      await testPauseTokenVoteRun(msv, tkn, {
+      await testPauseTokenVoteRun(vbo, tkn, {
         from: voters[1]
       })
     })
 
     it('should NOT allow voting for unpause action by a non-voter', async () => {
       await assertRevert(
-        testUnpauseTokenVote(msv, tkn, {
+        testUnpauseTokenVote(vbo, tkn, {
           from: other
         })
       )
     })
 
     it('should vote to unpause token', async () => {
-      await testUnpauseTokenVote(msv, tkn, {
+      await testUnpauseTokenVote(vbo, tkn, {
         from: voters[1]
       })
     })
 
     it('should NOT vote to unpause again from same address', async () => {
       await assertRevert(
-        testUnpauseTokenVote(msv, tkn, {
+        testUnpauseTokenVote(vbo, tkn, {
           from: voters[1]
         })
       )
     })
 
     it('should perform unpause token action after enough votes', async () => {
-      await testUnpauseTokenVoteRun(msv, tkn, {
+      await testUnpauseTokenVoteRun(vbo, tkn, {
         from: voters[2]
       })
     })
@@ -265,19 +265,19 @@ describe('when pausing/unpausing', () => {
 })
 
 describe('when handling ether', () => {
-  contract('MultiSigVote', () => {
+  contract('VotableOwner', () => {
     const etherRecipient = voters[0]
     const etherAmount = new BN(1).mul(decimals18)
-    let msv
+    let vbo
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
-      msv = contracts.msv
+      vbo = contracts.vbo
     })
 
     it('should receive ether without problems', async () => {
-      await testReceiveEther(msv, {
-        to: msv.address,
+      await testReceiveEther(vbo, {
+        to: vbo.address,
         from: other,
         value: etherAmount
       })
@@ -285,82 +285,82 @@ describe('when handling ether', () => {
 
     it('should NOT allow vote for sending ether by a non-voter', async () => {
       await assertRevert(
-        testSendEtherVote(msv, etherRecipient, etherAmount, {
+        testSendEtherVote(vbo, etherRecipient, etherAmount, {
           from: other
         })
       )
     })
 
     it('should vote to send ether', async () => {
-      await testSendEtherVote(msv, etherRecipient, etherAmount, {
+      await testSendEtherVote(vbo, etherRecipient, etherAmount, {
         from: voters[0]
       })
     })
 
     it('should NOT vote to send ether again from same address', async () => {
       await assertRevert(
-        testSendEtherVote(msv, etherRecipient, etherAmount, {
+        testSendEtherVote(vbo, etherRecipient, etherAmount, {
           from: voters[0]
         })
       )
     })
 
     it('should perform send ether action after enough votes', async () => {
-      await testSendEtherVoteRun(msv, etherRecipient, etherAmount, {
+      await testSendEtherVoteRun(vbo, etherRecipient, etherAmount, {
         from: voters[1]
       })
     })
   })
 })
 
-describe('when handling tokens on MultiSigVote', () => {
-  contract('MultiSigVote', () => {
+describe('when handling tokens on VotableOwner', () => {
+  contract('VotableOwner', () => {
     const etherRecipient = voters[0]
     const etherAmount = new BN(1).mul(decimals18)
-    let msv, tkn
+    let vbo, tkn
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
-      msv = contracts.msv
+      vbo = contracts.vbo
       tkn = contracts.tkn
     })
 
     it('should NOT allow vote for sending tokens if before token release date', async () => {
       await assertRevert(
-        testSendTokensVote(msv, tkn, etherRecipient, etherAmount, {
+        testSendTokensVote(vbo, tkn, etherRecipient, etherAmount, {
           from: other
         })
       )
     })
 
     it('should time travel to after token release date', async () => {
-      await warpToTokenReleaseDate(msv)
+      await warpToTokenReleaseDate(vbo)
     })
 
     it('should NOT allow vote for sending tokens by a non-voter', async () => {
       await assertRevert(
-        testSendTokensVote(msv, tkn, etherRecipient, etherAmount, {
+        testSendTokensVote(vbo, tkn, etherRecipient, etherAmount, {
           from: other
         })
       )
     })
 
     it('should vote to send tokens', async () => {
-      await testSendTokensVote(msv, tkn, etherRecipient, etherAmount, {
+      await testSendTokensVote(vbo, tkn, etherRecipient, etherAmount, {
         from: voters[0]
       })
     })
 
     it('should NOT vote to send tokens again from same address', async () => {
       await assertRevert(
-        testSendTokensVote(msv, tkn, etherRecipient, etherAmount, {
+        testSendTokensVote(vbo, tkn, etherRecipient, etherAmount, {
           from: voters[0]
         })
       )
     })
 
     it('should perform send tokens action after enough votes', async () => {
-      await testSendTokensVoteRun(msv, tkn, etherRecipient, etherAmount, {
+      await testSendTokensVoteRun(vbo, tkn, etherRecipient, etherAmount, {
         from: voters[1]
       })
     })
@@ -368,41 +368,41 @@ describe('when handling tokens on MultiSigVote', () => {
 })
 
 describe('when changing minimumVotes during another vote', () => {
-  contract('MultiSigVote', () => {
-    let msv, tkn
+  contract('VotableOwner', () => {
+    let vbo, tkn
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
-      msv = contracts.msv
+      vbo = contracts.vbo
       tkn = contracts.tkn
     })
 
     it('should vote to pause token', async () => {
-      await testPauseTokenVote(msv, tkn, {
+      await testPauseTokenVote(vbo, tkn, {
         from: voters[0]
       })
     })
 
     it('should update minimum votes', async () => {
-      await testUpdateMinimumVotesVote(msv, 3, {
+      await testUpdateMinimumVotesVote(vbo, 3, {
         from: voters[0]
       })
 
-      await testUpdateMinimumVotesVoteRun(msv, 3, {
+      await testUpdateMinimumVotesVoteRun(vbo, 3, {
         from: voters[1]
       })
     })
 
     it('should require 3 NEW votes to pause token after minimumVotes updated', async () => {
-      await testPauseTokenVote(msv, tkn, {
+      await testPauseTokenVote(vbo, tkn, {
         from: voters[0]
       })
 
-      await testPauseTokenVote(msv, tkn, {
+      await testPauseTokenVote(vbo, tkn, {
         from: voters[1]
       })
 
-      await testPauseTokenVoteRun(msv, tkn, {
+      await testPauseTokenVoteRun(vbo, tkn, {
         from: voters[2]
       })
     })
@@ -410,38 +410,38 @@ describe('when changing minimumVotes during another vote', () => {
 })
 
 describe('when adding voter during another vote', () => {
-  contract('MultiSigVote', () => {
+  contract('VotableOwner', () => {
     const badVoter = voters[3]
-    let msv, tkn
+    let vbo, tkn
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
-      msv = contracts.msv
+      vbo = contracts.vbo
       tkn = contracts.tkn
     })
 
     it('should vote to pause token', async () => {
-      await testPauseTokenVote(msv, tkn, {
+      await testPauseTokenVote(vbo, tkn, {
         from: voters[0]
       })
     })
 
     it('should add voter', async () => {
-      await testRemoveVoterVote(msv, badVoter, {
+      await testRemoveVoterVote(vbo, badVoter, {
         from: voters[0]
       })
 
-      await testRemoveVoterVoteRun(msv, badVoter, {
+      await testRemoveVoterVoteRun(vbo, badVoter, {
         from: voters[1]
       })
     })
 
     it('should require 2 NEW votes to pause token after voter removed', async () => {
-      await testPauseTokenVote(msv, tkn, {
+      await testPauseTokenVote(vbo, tkn, {
         from: voters[0]
       })
 
-      await testPauseTokenVoteRun(msv, tkn, {
+      await testPauseTokenVoteRun(vbo, tkn, {
         from: voters[1]
       })
     })
@@ -449,41 +449,41 @@ describe('when adding voter during another vote', () => {
 })
 
 describe('when voting resulting in a successful action and voting again', () => {
-  contract('MultiSigVote', () => {
-    let msv, tkn
+  contract('VotableOwner', () => {
+    let vbo, tkn
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
-      msv = contracts.msv
+      vbo = contracts.vbo
       tkn = contracts.tkn
     })
 
     it('should vote and pause token after two votes', async () => {
-      await testPauseTokenVote(msv, tkn, {
+      await testPauseTokenVote(vbo, tkn, {
         from: voters[0]
       })
 
-      await testPauseTokenVoteRun(msv, tkn, {
+      await testPauseTokenVoteRun(vbo, tkn, {
         from: voters[1]
       })
     })
 
     it('should vote and unpause token for second round of pause votes', async () => {
-      await testUnpauseTokenVote(msv, tkn, {
+      await testUnpauseTokenVote(vbo, tkn, {
         from: voters[0]
       })
 
-      await testUnpauseTokenVoteRun(msv, tkn, {
+      await testUnpauseTokenVoteRun(vbo, tkn, {
         from: voters[1]
       })
     })
 
     it('should vote and pause token after two votes again', async () => {
-      await testPauseTokenVote(msv, tkn, {
+      await testPauseTokenVote(vbo, tkn, {
         from: voters[0]
       })
 
-      await testPauseTokenVoteRun(msv, tkn, {
+      await testPauseTokenVoteRun(vbo, tkn, {
         from: voters[1]
       })
     })

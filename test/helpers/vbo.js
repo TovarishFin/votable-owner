@@ -7,7 +7,7 @@ const {
   timeWarp,
   getCurrentBlockTime
 } = require('./general')
-const MultiSigVote = artifacts.require('MultiSigVote.sol')
+const VotableOwner = artifacts.require('VotableOwner.sol')
 const ExampleToken = artifacts.require('./mocks/ExampleToken.sol')
 const { soliditySha3 } = web3.utils
 const { BN } = web3.utils
@@ -18,10 +18,10 @@ const defaultDecimals = 18
 const defaultVoteRequirement = 2
 const defaultTokenReleaseDate =
   Math.floor(new Date().getTime() / 1000) + 60 * 60 * 24 * 30
-const defaultMultiSigTokenBalance = 5e18
+const defaultVotableOwnerTokenBalance = 5e18
 
-const calculateActionId = async (msv, callData) => {
-  const actionNonce = await msv.actionNonce()
+const calculateActionId = async (vbo, callData) => {
+  const actionNonce = await vbo.actionNonce()
 
   const actionId = soliditySha3(
     {
@@ -47,14 +47,14 @@ const setupContracts = async () => {
     }
   )
 
-  const msv = await MultiSigVote.new(
+  const vbo = await VotableOwner.new(
     voters,
     defaultVoteRequirement,
     defaultTokenReleaseDate,
     tkn.address
   )
 
-  await tkn.mint(msv.address, defaultMultiSigTokenBalance, {
+  await tkn.mint(vbo.address, defaultVotableOwnerTokenBalance, {
     from: tempOwner
   })
 
@@ -64,17 +64,17 @@ const setupContracts = async () => {
     })
   }
 
-  await tkn.transferOwnership(msv.address, {
+  await tkn.transferOwnership(vbo.address, {
     from: tempOwner
   })
 
   return {
     tkn,
-    msv
+    vbo
   }
 }
 
-const testTokenInitialization = async (tkn, msv) => {
+const testTokenInitialization = async (tkn, vbo) => {
   const name = await tkn.name()
   const symbol = await tkn.symbol()
   const decimals = await tkn.decimals()
@@ -98,24 +98,24 @@ const testTokenInitialization = async (tkn, msv) => {
   )
   assert.equal(
     owner,
-    msv.address,
-    'owner should be MultiSig contract from ownership transfer'
+    vbo.address,
+    'owner should be VotableOwner contract from ownership transfer'
   )
   assert(!paused, 'token should NOT be paused')
 }
 
-const testMultiSigInitialization = async (msv, tkn) => {
-  const minimumVotes = await msv.minimumVotes()
-  const tokenReleaseDate = await msv.tokenReleaseDate()
-  const voterCount = await msv.voterCount()
-  const token = await msv.token()
-  const tokenBalance = await tkn.balanceOf(msv.address)
-  const etherBalance = await getEtherBalance(msv.address)
+const testVotableOwnerInitialization = async (vbo, tkn) => {
+  const minimumVotes = await vbo.minimumVotes()
+  const tokenReleaseDate = await vbo.tokenReleaseDate()
+  const voterCount = await vbo.voterCount()
+  const token = await vbo.token()
+  const tokenBalance = await tkn.balanceOf(vbo.address)
+  const etherBalance = await getEtherBalance(vbo.address)
 
   for (const voter of voters) {
-    const isVoter = await msv.isVoter(voter)
+    const isVoter = await vbo.isVoter(voter)
 
-    assert(isVoter, 'voter should be a voter on MultiSig contract')
+    assert(isVoter, 'voter should be a voter on VotableOwner contract')
   }
 
   assert.equal(
@@ -140,30 +140,30 @@ const testMultiSigInitialization = async (msv, tkn) => {
   )
   assert.equal(
     tokenBalance.toString(),
-    defaultMultiSigTokenBalance.toString(),
-    'MultiSig should have correct token balance'
+    defaultVotableOwnerTokenBalance.toString(),
+    'VotableOwner should have correct token balance'
   )
   assert.equal(
     etherBalance.toString(),
     '0',
-    'MultiSig should NO ether at the start'
+    'VotableOwner should NO ether at the start'
   )
 }
 
-const testPauseTokenVote = async (msv, tkn, config) => {
+const testPauseTokenVote = async (vbo, tkn, config) => {
   const { from } = config
-  const callData = msv.contract.methods.pauseToken().encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
+  const callData = vbo.contract.methods.pauseToken().encodeABI()
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
   const prePaused = await tkn.paused()
 
-  await msv.pauseToken(config)
+  await vbo.pauseToken(config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
   const postPaused = await tkn.paused()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -183,20 +183,20 @@ const testPauseTokenVote = async (msv, tkn, config) => {
   assert(!postPaused, 'token should NOT be paused even after voting')
 }
 
-const testPauseTokenVoteRun = async (msv, tkn, config) => {
+const testPauseTokenVoteRun = async (vbo, tkn, config) => {
   const { from } = config
-  const callData = msv.contract.methods.pauseToken().encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
+  const callData = vbo.contract.methods.pauseToken().encodeABI()
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
   const prePaused = await tkn.paused()
 
-  await msv.pauseToken(config)
+  await vbo.pauseToken(config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
   const postPaused = await tkn.paused()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -216,20 +216,20 @@ const testPauseTokenVoteRun = async (msv, tkn, config) => {
   assert(postPaused, 'token should be paused after successful vote')
 }
 
-const testUnpauseTokenVote = async (msv, tkn, config) => {
+const testUnpauseTokenVote = async (vbo, tkn, config) => {
   const { from } = config
-  const callData = msv.contract.methods.unpauseToken().encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
+  const callData = vbo.contract.methods.unpauseToken().encodeABI()
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
   const prePaused = await tkn.paused()
 
-  await msv.unpauseToken(config)
+  await vbo.unpauseToken(config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
   const postPaused = await tkn.paused()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -249,20 +249,20 @@ const testUnpauseTokenVote = async (msv, tkn, config) => {
   assert(postPaused, 'token should be paused even after vote')
 }
 
-const testUnpauseTokenVoteRun = async (msv, tkn, config) => {
+const testUnpauseTokenVoteRun = async (vbo, tkn, config) => {
   const { from } = config
-  const callData = msv.contract.methods.unpauseToken().encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
+  const callData = vbo.contract.methods.unpauseToken().encodeABI()
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
   const prePaused = await tkn.paused()
 
-  await msv.unpauseToken(config)
+  await vbo.unpauseToken(config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
   const postPaused = await tkn.paused()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -282,23 +282,23 @@ const testUnpauseTokenVoteRun = async (msv, tkn, config) => {
   assert(!postPaused, 'token should NOT be paused after successful vote')
 }
 
-const testRemoveVoterVote = async (msv, voterToRemove, config) => {
+const testRemoveVoterVote = async (vbo, voterToRemove, config) => {
   const { from } = config
-  const callData = msv.contract.methods.removeVoter(voterToRemove).encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
-  const preVoterCount = await msv.voterCount()
-  const preIsVoter = await msv.isVoter(voterToRemove)
+  const callData = vbo.contract.methods.removeVoter(voterToRemove).encodeABI()
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
+  const preVoterCount = await vbo.voterCount()
+  const preIsVoter = await vbo.isVoter(voterToRemove)
 
-  await msv.removeVoter(voterToRemove, config)
+  await vbo.removeVoter(voterToRemove, config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
-  const postVoterCount = await msv.voterCount()
-  const postIsVoter = await msv.isVoter(voterToRemove)
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
+  const postVoterCount = await vbo.voterCount()
+  const postIsVoter = await vbo.isVoter(voterToRemove)
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
   assert.equal(
@@ -323,23 +323,23 @@ const testRemoveVoterVote = async (msv, voterToRemove, config) => {
   assert(postIsVoter, 'voterToRemove should still be a voter after voting')
 }
 
-const testRemoveVoterVoteRun = async (msv, voterToRemove, config) => {
+const testRemoveVoterVoteRun = async (vbo, voterToRemove, config) => {
   const { from } = config
-  const callData = msv.contract.methods.removeVoter(voterToRemove).encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
-  const preVoterCount = await msv.voterCount()
-  const preIsVoter = await msv.isVoter(voterToRemove)
+  const callData = vbo.contract.methods.removeVoter(voterToRemove).encodeABI()
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
+  const preVoterCount = await vbo.voterCount()
+  const preIsVoter = await vbo.isVoter(voterToRemove)
 
-  await msv.removeVoter(voterToRemove, config)
+  await vbo.removeVoter(voterToRemove, config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
-  const postVoterCount = await msv.voterCount()
-  const postIsVoter = await msv.isVoter(voterToRemove)
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
+  const postVoterCount = await vbo.voterCount()
+  const postIsVoter = await vbo.isVoter(voterToRemove)
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
   assert.equal(
@@ -367,23 +367,23 @@ const testRemoveVoterVoteRun = async (msv, voterToRemove, config) => {
   )
 }
 
-const testAddVoterVote = async (msv, voterCandidate, config) => {
+const testAddVoterVote = async (vbo, voterCandidate, config) => {
   const { from } = config
-  const callData = msv.contract.methods.addVoter(voterCandidate).encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
-  const preVoterCount = await msv.voterCount()
-  const preIsVoter = await msv.isVoter(voterCandidate)
+  const callData = vbo.contract.methods.addVoter(voterCandidate).encodeABI()
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
+  const preVoterCount = await vbo.voterCount()
+  const preIsVoter = await vbo.isVoter(voterCandidate)
 
-  await msv.addVoter(voterCandidate, config)
+  await vbo.addVoter(voterCandidate, config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
-  const postVoterCount = await msv.voterCount()
-  const postIsVoter = await msv.isVoter(voterCandidate)
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
+  const postVoterCount = await vbo.voterCount()
+  const postIsVoter = await vbo.isVoter(voterCandidate)
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
   assert.equal(
@@ -411,23 +411,23 @@ const testAddVoterVote = async (msv, voterCandidate, config) => {
   )
 }
 
-const testAddVoterVoteRun = async (msv, voterCandidate, config) => {
+const testAddVoterVoteRun = async (vbo, voterCandidate, config) => {
   const { from } = config
-  const callData = msv.contract.methods.addVoter(voterCandidate).encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
-  const preVoterCount = await msv.voterCount()
-  const preIsVoter = await msv.isVoter(voterCandidate)
+  const callData = vbo.contract.methods.addVoter(voterCandidate).encodeABI()
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
+  const preVoterCount = await vbo.voterCount()
+  const preIsVoter = await vbo.isVoter(voterCandidate)
 
-  await msv.addVoter(voterCandidate, config)
+  await vbo.addVoter(voterCandidate, config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
-  const postVoterCount = await msv.voterCount()
-  const postIsVoter = await msv.isVoter(voterCandidate)
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
+  const postVoterCount = await vbo.voterCount()
+  const postIsVoter = await vbo.isVoter(voterCandidate)
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
   assert.equal(
@@ -452,21 +452,21 @@ const testAddVoterVoteRun = async (msv, voterCandidate, config) => {
   assert(postIsVoter, 'voterCandidate should be a voter after successful vote')
 }
 
-const testUpdateMinimumVotesVote = async (msv, minVotes, config) => {
+const testUpdateMinimumVotesVote = async (vbo, minVotes, config) => {
   const { from } = config
-  const callData = msv.contract.methods.updateMinimumVotes(minVotes).encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
-  const preMinVotes = await msv.minimumVotes()
+  const callData = vbo.contract.methods.updateMinimumVotes(minVotes).encodeABI()
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
+  const preMinVotes = await vbo.minimumVotes()
 
-  await msv.updateMinimumVotes(minVotes, config)
+  await vbo.updateMinimumVotes(minVotes, config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
-  const postMinVotes = await msv.minimumVotes()
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
+  const postMinVotes = await vbo.minimumVotes()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
   assert.equal(
@@ -487,20 +487,20 @@ const testUpdateMinimumVotesVote = async (msv, minVotes, config) => {
   )
 }
 
-const testUpdateMinimumVotesVoteRun = async (msv, minVotes, config) => {
+const testUpdateMinimumVotesVoteRun = async (vbo, minVotes, config) => {
   const { from } = config
-  const callData = msv.contract.methods.updateMinimumVotes(minVotes).encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
+  const callData = vbo.contract.methods.updateMinimumVotes(minVotes).encodeABI()
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
 
-  await msv.updateMinimumVotes(minVotes, config)
+  await vbo.updateMinimumVotes(minVotes, config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
-  const postMinVotes = await msv.minimumVotes()
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
+  const postMinVotes = await vbo.minimumVotes()
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
   assert.equal(
@@ -521,41 +521,41 @@ const testUpdateMinimumVotesVoteRun = async (msv, minVotes, config) => {
   )
 }
 
-const testReceiveEther = async (msv, config) => {
-  const preContractEtherBalance = await getEtherBalance(msv.address)
+const testReceiveEther = async (vbo, config) => {
+  const preContractEtherBalance = await getEtherBalance(vbo.address)
 
   await sendTransaction(config)
 
-  const postContractEtherBalance = await getEtherBalance(msv.address)
+  const postContractEtherBalance = await getEtherBalance(vbo.address)
 
   assert.equal(
     new BN(postContractEtherBalance)
       .sub(new BN(preContractEtherBalance))
       .toString(),
     new BN(config.value.replace('0x', ''), 16).toString(),
-    'MultiSig ether balance should be incremented by tx value'
+    'VotableOwner ether balance should be incremented by tx value'
   )
 }
 
-const testSendEtherVote = async (msv, etherRecipient, etherAmount, config) => {
+const testSendEtherVote = async (vbo, etherRecipient, etherAmount, config) => {
   const { from } = config
-  const callData = msv.contract.methods
+  const callData = vbo.contract.methods
     .transferEther(etherRecipient, etherAmount)
     .encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
-  const preContractEtherBalance = await getEtherBalance(msv.address)
-  const preRecipientEtherBalance = await getEtherBalance(msv.address)
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
+  const preContractEtherBalance = await getEtherBalance(vbo.address)
+  const preRecipientEtherBalance = await getEtherBalance(vbo.address)
 
-  await msv.transferEther(etherRecipient, etherAmount, config)
+  await vbo.transferEther(etherRecipient, etherAmount, config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
-  const postContractEtherBalance = await getEtherBalance(msv.address)
-  const postRecipientEtherBalance = await getEtherBalance(msv.address)
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
+  const postContractEtherBalance = await getEtherBalance(vbo.address)
+  const postRecipientEtherBalance = await getEtherBalance(vbo.address)
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
   assert.equal(
@@ -572,7 +572,7 @@ const testSendEtherVote = async (msv, etherRecipient, etherAmount, config) => {
   assert.equal(
     preContractEtherBalance.toString(),
     postContractEtherBalance.toString(),
-    'MultiSig ether balance should remain the same after voting'
+    'VotableOwner ether balance should remain the same after voting'
   )
   assert.equal(
     preRecipientEtherBalance.toString(),
@@ -582,28 +582,28 @@ const testSendEtherVote = async (msv, etherRecipient, etherAmount, config) => {
 }
 
 const testSendEtherVoteRun = async (
-  msv,
+  vbo,
   etherRecipient,
   etherAmount,
   config
 ) => {
   const { from } = config
-  const callData = msv.contract.methods
+  const callData = vbo.contract.methods
     .transferEther(etherRecipient, etherAmount)
     .encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
-  const preContractEtherBalance = await getEtherBalance(msv.address)
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
+  const preContractEtherBalance = await getEtherBalance(vbo.address)
   const preRecipientBalance = await getEtherBalance(etherRecipient)
 
-  await msv.transferEther(etherRecipient, etherAmount, config)
+  await vbo.transferEther(etherRecipient, etherAmount, config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
-  const postContractEtherBalance = await getEtherBalance(msv.address)
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
+  const postContractEtherBalance = await getEtherBalance(vbo.address)
   const postRecipientBalance = await getEtherBalance(etherRecipient)
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -623,7 +623,7 @@ const testSendEtherVoteRun = async (
       .sub(new BN(postContractEtherBalance))
       .toString(),
     new BN(etherAmount).toString(),
-    'MultiSig ether balance should be decremented by etherAmount'
+    'VotableOwner ether balance should be decremented by etherAmount'
   )
   assert.equal(
     new BN(postRecipientBalance).sub(new BN(preRecipientBalance)).toString(),
@@ -633,29 +633,29 @@ const testSendEtherVoteRun = async (
 }
 
 const testSendTokensVote = async (
-  msv,
+  vbo,
   tkn,
   tokenRecipient,
   tokenAmount,
   config
 ) => {
   const { from } = config
-  const callData = msv.contract.methods
+  const callData = vbo.contract.methods
     .transferTokens(tokenRecipient, tokenAmount)
     .encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
-  const preContractTokenBalance = await tkn.balanceOf(msv.address)
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
+  const preContractTokenBalance = await tkn.balanceOf(vbo.address)
   const preRecipientTokenBalance = await tkn.balanceOf(tokenRecipient)
 
-  await msv.transferTokens(tokenRecipient, tokenAmount, config)
+  await vbo.transferTokens(tokenRecipient, tokenAmount, config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
-  const postContractTokenBalance = await tkn.balanceOf(msv.address)
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
+  const postContractTokenBalance = await tkn.balanceOf(vbo.address)
   const postRecipientTokenBalance = await tkn.balanceOf(tokenRecipient)
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -684,29 +684,29 @@ const testSendTokensVote = async (
 }
 
 const testSendTokensVoteRun = async (
-  msv,
+  vbo,
   tkn,
   tokenRecipient,
   tokenAmount,
   config
 ) => {
   const { from } = config
-  const callData = msv.contract.methods
+  const callData = vbo.contract.methods
     .transferTokens(tokenRecipient, tokenAmount)
     .encodeABI()
-  const actionId = await calculateActionId(msv, callData)
-  const preHasVoted = await msv.hasVoted(actionId, from)
-  const preActionVotes = await msv.actionVotes(actionId)
-  const preActionNonce = await msv.actionNonce()
-  const preContractTokenBalance = await tkn.balanceOf(msv.address)
+  const actionId = await calculateActionId(vbo, callData)
+  const preHasVoted = await vbo.hasVoted(actionId, from)
+  const preActionVotes = await vbo.actionVotes(actionId)
+  const preActionNonce = await vbo.actionNonce()
+  const preContractTokenBalance = await tkn.balanceOf(vbo.address)
   const preRecipientTokenBalance = await tkn.balanceOf(tokenRecipient)
 
-  await msv.transferTokens(tokenRecipient, tokenAmount, config)
+  await vbo.transferTokens(tokenRecipient, tokenAmount, config)
 
-  const postHasVoted = await msv.hasVoted(actionId, from)
-  const postActionVotes = await msv.actionVotes(actionId)
-  const postActionNonce = await msv.actionNonce()
-  const postContractTokenBalance = await tkn.balanceOf(msv.address)
+  const postHasVoted = await vbo.hasVoted(actionId, from)
+  const postActionVotes = await vbo.actionVotes(actionId)
+  const postActionNonce = await vbo.actionNonce()
+  const postContractTokenBalance = await tkn.balanceOf(vbo.address)
   const postRecipientTokenBalance = await tkn.balanceOf(tokenRecipient)
 
   assert(!preHasVoted, 'user should have NOT voted on this action before')
@@ -734,9 +734,9 @@ const testSendTokensVoteRun = async (
   )
 }
 
-const warpToTokenReleaseDate = async msv => {
+const warpToTokenReleaseDate = async vbo => {
   const currentBlockTime = await getCurrentBlockTime()
-  const tokenReleaseDateBig = await msv.tokenReleaseDate()
+  const tokenReleaseDateBig = await vbo.tokenReleaseDate()
   const tokenReleaseDate = tokenReleaseDateBig.toNumber()
   const secondsToWarp = tokenReleaseDate - currentBlockTime + 60
 
@@ -749,10 +749,10 @@ module.exports = {
   defaultDecimals,
   defaultVoteRequirement,
   defaultTokenReleaseDate,
-  defaultMultiSigTokenBalance,
+  defaultVotableOwnerTokenBalance,
   setupContracts,
   testTokenInitialization,
-  testMultiSigInitialization,
+  testVotableOwnerInitialization,
   testPauseTokenVote,
   testPauseTokenVoteRun,
   testUnpauseTokenVote,

@@ -27,13 +27,13 @@ An example of this would be perhaps management of a company which controls owner
 ### Example of Use
 1. Company X has mostly finished development of their ecosystem. They will need an owner who can do special permissioned actions such as pausing or unpausing a token.
 1. They have decided that keeping a single account safe is too much of a risk and would rather have 5 different accounts which could vote together in order to perform owner actions.
-1. Company X uses MultiSigVote contract as the owner. 
+1. Company X uses VotableOwner contract as the owner. 
 1. They deploy the contract and set 5 different managers as voters. 
 1. They set minimum votes to 3 for performing an action. 
     * This allows for up to two of the private keys being lost. 
     * These accounts can be removed by vote of the remaining 3 voters. 
     * Other accounts can be added as replacements.
-1. Company X sets the owner of the their token to the MultiSigVote contract.
+1. Company X sets the owner of the their token to the VotableOwner contract.
 1. Later down the road, Company X decides they need to pause the token for some reason.
 1. Company X decides on the 3 people needed to vote.
 1. All 3 of the voters run `pauseToken()`
@@ -77,19 +77,19 @@ There is definitely a problem here where it is rather difficult to track vote co
 ·················|······················|·········|··········|·········|·············|···············
 |  ExampleToken  ·  unpause             ·      -  ·       -  ·      -  ·          0  ·           -  │
 ·················|······················|·········|··········|·········|·············|···············
-|  MultiSigVote  ·  addVoter            ·  68048  ·  100290  ·  84169  ·          2  ·        0.15  │
+|  VotableOwner  ·  addVoter            ·  68048  ·  100290  ·  84169  ·          2  ·        0.15  │
 ·················|······················|·········|··········|·········|·············|···············
-|  MultiSigVote  ·  pauseToken          ·  50605  ·   79966  ·  69876  ·         13  ·        0.13  │
+|  VotableOwner  ·  pauseToken          ·  50605  ·   79966  ·  69876  ·         13  ·        0.13  │
 ·················|······················|·········|··········|·········|·············|···············
-|  MultiSigVote  ·  removeVoter         ·  55680  ·   70680  ·  67261  ·          7  ·        0.12  │
+|  VotableOwner  ·  removeVoter         ·  55680  ·   70680  ·  67261  ·          7  ·        0.12  │
 ·················|······················|·········|··········|·········|·············|···············
-|  MultiSigVote  ·  transferEther       ·  68118  ·   82460  ·  75289  ·          2  ·        0.14  │
+|  VotableOwner  ·  transferEther       ·  68118  ·   82460  ·  75289  ·          2  ·        0.14  │
 ·················|······················|·········|··········|·········|·············|···············
-|  MultiSigVote  ·  transferTokens      ·  68544  ·  106505  ·  87525  ·          2  ·        0.16  │
+|  VotableOwner  ·  transferTokens      ·  68544  ·  106505  ·  87525  ·          2  ·        0.16  │
 ·················|······················|·········|··········|·········|·············|···············
-|  MultiSigVote  ·  unpauseToken        ·  65649  ·   79853  ·  76302  ·          4  ·        0.14  │
+|  VotableOwner  ·  unpauseToken        ·  65649  ·   79853  ·  76302  ·          4  ·        0.14  │
 ·················|······················|·········|··········|·········|·············|···············
-|  MultiSigVote  ·  updateMinimumVotes  ·  66936  ·   78984  ·  72960  ·          4  ·        0.13  │
+|  VotableOwner  ·  updateMinimumVotes  ·  66936  ·   78984  ·  72960  ·          4  ·        0.13  │
 ·----------------|----------------------|---------|----------|---------|-------------|--------------·
 
 ## Important Notes

@@ -1,5 +1,5 @@
 const ExampleToken = artifacts.require('./mocks/ExampleToken.sol')
-const MultiSigVote = artifacts.require('MultiSigVote.sol')
+const VotableOwner = artifacts.require('VotableOwner.sol')
 module.exports = async (deployer, network, accounts) => {
   if (network === 'test') {
     global.accounts = accounts
@@ -17,7 +17,7 @@ module.exports = async (deployer, network, accounts) => {
   const tkn = await ExampleToken.deployed()
 
   await deployer.deploy(
-    MultiSigVote,
+    VotableOwner,
     voters,
     2,
     Math.floor(new Date().getTime() / 1000) + 60 * 60,
@@ -26,9 +26,9 @@ module.exports = async (deployer, network, accounts) => {
       from: tempOwner
     }
   )
-  const msv = await MultiSigVote.deployed()
+  const vbo = await VotableOwner.deployed()
 
-  await tkn.mint(msv.address, 5e18, {
+  await tkn.mint(vbo.address, 5e18, {
     from: tempOwner
   })
 
@@ -38,7 +38,7 @@ module.exports = async (deployer, network, accounts) => {
     })
   }
 
-  await tkn.transferOwnership(msv.address, {
+  await tkn.transferOwnership(vbo.address, {
     from: tempOwner
   })
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.4.24;
 import "./interfaces/IPausableToken.sol";
 
 /**
-  @title VotersWallet acts as the owner for all contracts and requires a minimum vote for any owner action before running. 
+  @title VotableOwner acts as the owner for all contracts and requires a minimum vote for any owner action before running. 
   @notice This contract operates on voting principles calling any of the following functions will result in a vote for
   performing the given action:
     - transferEther
@@ -29,7 +29,7 @@ import "./interfaces/IPausableToken.sol";
   the final person voting triggers the action to be performed. As stated above, the action nonce is incremented which
   effectively resets all of the voting logic for a given action.
  */
-contract MultiSigVote {
+contract VotableOwner {
   
   // minimum votes needed for any action to successfully run
   uint256 public minimumVotes;
