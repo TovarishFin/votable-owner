@@ -6,8 +6,12 @@ This implementation ensures that the voters know more clearly what they are voti
 **pros**
 * a more clear voting system
 * users with minimal technical knowledge can see what they are voting on
+* inexperience voters simply need to call an easily understandable contract function
 * no need for creating a tx payload to vote on/verify
 * easy to extend for additional functionality
+    * simply add another function with intended logic
+    * wrap intended action logic in an if statement using `hasVotePassed()`
+    * done!
 
 **cons**
 * not as dynamic and flexible as [ethereum.org's dao implementation](https://ethereum.org/dao)
@@ -42,16 +46,48 @@ An example of this would be perhaps management of a company which controls owner
 As stated in the previous section... a DApp could be built in house for this contract which could at least check on vote counts. This would allow for this contract to work with a less closely knit team or group.
 
 ## How it Works
+This contract uses hashes to ensure that there is a particular `actionId` for each action (function) with different arguments.
 
+The `actionId` is a hash of:
+1. `msg.data`
+    * this includes the first 4 bytes of the function signature & call data (function arguments)
+    * function signature ensures that the vote is for the associated function/action
+    * call data ensures calling the same function with different arguments does not count for the same vote
+1. `actionNonce`
+    * when incremented upon vote being passed, all other votes are effectively reset
+
+Any function which implements `voteHasPassed()` logic can be called by a voter. When a voter calls the function, the vote count for that particular action is incremented. Calling a function acts as a vote for doing the associated action. When the last voter to call the function which meets `minimumVotes` requirement triggers the action to be performed. 
+
+Triggering an action to be performed through a vote also increments the `actionNonce`. When this is incremented, it ensures that a new hash is created as an `actionId` for every voteable action. This effectively resets all voting logic. This is done due to the difficulty in getting vote counts for actions. If vote counts were kept after a new vote, leftover votes for an action might trigger unexpected actions to be performed. If vote visibility were more beginner friendly, this would be less of a problem.
+
+## Details on Extending
+Usage for developers is also meant to be rather simple. A new function which would be votable would look something like this:
+
+```
+function doThing(
+    uint256 _newVal // some example value
+)
+    external
+    returns (bool) // optional... i just like adding returns :)
+{
+    if(voteHasPassed()) {
+        // set some theoretical value on the contract
+        val = _newVal;
+    }
+
+    // again optional...
+    return true;
+}
+```
 
 ## Possible Future work
-There is definitely a problem here where it is rather difficult to track vote counts currently. It might be better to change it so that after ANY vote has passed, the vote count is reset. This way there would be no accidental actions being performed earlier than anticipated due to lingering votes from previous votes. However, as stated earlier, if this is used by a closely knit team which uses a simple DApp for vote counts, it should not be a serious issue.
+There is definitely a problem here where it is rather difficult to track vote counts currently. Perhaps in the future a DApp will be developed to go along with the contract as an aid for less experienced voters.
 
 ## Gas Usage
 ·----------------------------------------------------------------------|----------------------------·
 |                                 Gas                                  ·  Block limit: 6721975 gas  │
 ········································|······························|·····························
-|  Methods                              ·         10 gwei/gas          ·       182.90 eur/eth       │
+|  Methods                              ·          9 gwei/gas          ·       187.43 eur/eth       │
 ·················|······················|·········|··········|·········|·············|···············
 |  Contract      ·  Method              ·  Min    ·  Max     ·  Avg    ·  # calls    ·  eur (avg)   │
 ·················|······················|·········|··········|·········|·············|···············
@@ -77,19 +113,19 @@ There is definitely a problem here where it is rather difficult to track vote co
 ·················|······················|·········|··········|·········|·············|···············
 |  ExampleToken  ·  unpause             ·      -  ·       -  ·      -  ·          0  ·           -  │
 ·················|······················|·········|··········|·········|·············|···············
-|  VotableOwner  ·  addVoter            ·  68048  ·  100290  ·  84169  ·          2  ·        0.15  │
+|  VotableOwner  ·  addVoter            ·  66580  ·   83494  ·  75037  ·          2  ·        0.13  │
 ·················|······················|·········|··········|·········|·············|···············
-|  VotableOwner  ·  pauseToken          ·  50605  ·   79966  ·  69876  ·         13  ·        0.13  │
+|  VotableOwner  ·  pauseToken          ·  49402  ·   78521  ·  65217  ·         13  ·        0.11  │
 ·················|······················|·········|··········|·········|·············|···············
-|  VotableOwner  ·  removeVoter         ·  55680  ·   70680  ·  67261  ·          7  ·        0.12  │
+|  VotableOwner  ·  removeVoter         ·  53822  ·   68822  ·  65584  ·          7  ·        0.11  │
 ·················|······················|·········|··········|·········|·············|···············
-|  VotableOwner  ·  transferEther       ·  68118  ·   82460  ·  75289  ·          2  ·        0.14  │
+|  VotableOwner  ·  transferEther       ·  66636  ·   80736  ·  73686  ·          2  ·        0.12  │
 ·················|······················|·········|··········|·········|·············|···············
-|  VotableOwner  ·  transferTokens      ·  68544  ·  106505  ·  87525  ·          2  ·        0.16  │
+|  VotableOwner  ·  transferTokens      ·  67084  ·  104803  ·  85944  ·          2  ·        0.14  │
 ·················|······················|·········|··········|·········|·············|···············
-|  VotableOwner  ·  unpauseToken        ·  65649  ·   79853  ·  76302  ·          4  ·        0.14  │
+|  VotableOwner  ·  unpauseToken        ·  63430  ·   64468  ·  63949  ·          4  ·        0.11  │
 ·················|······················|·········|··········|·········|·············|···············
-|  VotableOwner  ·  updateMinimumVotes  ·  66936  ·   78984  ·  72960  ·          4  ·        0.13  │
+|  VotableOwner  ·  updateMinimumVotes  ·  65416  ·   77222  ·  71319  ·          4  ·        0.12  │
 ·----------------|----------------------|---------|----------|---------|-------------|--------------·
 
 ## Important Notes
@@ -192,3 +228,6 @@ yarn migrate:rinkeby
 ```
 yarn migrate:mainnet
 ```
+
+## Legal
+This contract has not been audited by any party. Use at your own risk.

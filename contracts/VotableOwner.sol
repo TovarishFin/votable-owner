@@ -66,6 +66,11 @@ contract VotableOwner {
     uint256 oldMinimumVotes,
     uint256 newMinimumVotes
   );
+  event VoterVoted(
+    address indexed voter,
+    bytes indexed callData,
+    uint256 votes
+  );
 
   modifier onlyVoter() {
     require(isVoter[msg.sender]);
@@ -136,6 +141,12 @@ contract VotableOwner {
 
       return true;
     }
+
+    emit VoterVoted(
+      msg.sender,
+      msg.data,
+      actionVotes[_actionId]
+    );
 
     return false;
   }
