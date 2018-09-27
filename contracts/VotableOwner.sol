@@ -3,31 +3,31 @@ pragma solidity ^0.4.24;
 import "./interfaces/IPausableToken.sol";
 
 /**
-  @title VotableOwner acts as the owner for all contracts and requires a minimum vote for any owner action before running. 
-  @notice This contract operates on voting principles calling any of the following functions will result in a vote for
-  performing the given action:
-    - transferEther
-    - pauseToken
-    - unpauseToken
-    - transferTokens
-    - addVoter
-    - removeVoter
-  The last person voting for a given action by calling any of the above the functions will trigger the action being performed.
+  @title VotableOwner can act as the owner for other contracts and requires a minimum vote for any owner action before running.
+  It can also act as a "multi-sig" wallet for tokens and ether. 
+  @notice Any non-private/internal function other than constructor implements a voting pattern where running a given function
+  will act as a vote for the function until the minimumVotes requirement has been met. The voter calling a function triggering minimumVotes
+  to be met will trigger the action to be performed. Once when an action has been performed after a successful vote, all votes for all
+  actions are reset.
 
   @dev The voting aspect of this contract operates on the principle of hashes and nonces. Actions in this contract can be
-  defined as an action that a voter wants to take. These actions are expressed/performed through functions. Each action 
-  is represented in the Actions enum. actionNonces holds a nonce which is incremented every time that a vote has been passed. 
+  defined as an action that a voter wants to take. These actions are expressed/performed through functions. 
+  actionNonces holds a nonce which is incremented every time that any vote has been passed. 
   Each time an action is voted on by a voter, voteHasPassed() is run which creates the appropriate  _actionId. 
   The _actionId is calculated by hashing the following: 
-    - Action enum as a uint256 
-    - _paramHash which is calculated by hashing any arguments for a function relating to an action
-    - action nonce (contained in actionNonces for each Action enum)
-    - minimumVotes which effectively resets all action votes if minimumVotes has been changed
-    - voterCount which effectively resets all action votesif voterCount has been changed (voter has been added or removed)
+    - msg.data (contains function signature and call data)
+      - function signature ensures that a vote is only for a particular action (ex. pauseToken) and not another (ex. unpauseToken)
+      - call data ensures that a particular function with different arguments doesnt count as a vote for that same action with different arguments
+    - actionNonce
+      - hashing the nonce ensures that voting is reset each time a vote has passed
+  
+  The _actionId is used for tracking:
+    - votes for a particular action
+    - whether a voter has already voted for an action
   
   Once when the function relating to a given action has been called by enough different voters, the vote has passed and
   the final person voting triggers the action to be performed. As stated above, the action nonce is incremented which
-  effectively resets all of the voting logic for a given action.
+  effectively resets all of the voting logic.
  */
 contract VotableOwner {
   
@@ -109,11 +109,11 @@ contract VotableOwner {
     token = _token;
   }
 
-  event Test(bytes32 id);
   /**
-    @dev this function increments the vote count and checks if minimum votes requirement
-    has been met. if minimum vote count has been met, the nonce for a given action will
-    be incremented effectively resetting the vote count and whether a voter has voted.
+    @dev wrap any votable action in an if statement using this function to implement to implement voting logic
+    this function increments the vote count and checks if minimum votes requirement
+    has been met. if minimum vote count has been met, actionNonce will
+    be incremented, effectively resetting the vote count and whether a voter has voted.
     the function will return true if vote count requirement has been met and false if not.
     Changing minimumVotes or voterCount also effectively resets votes.
    */
@@ -125,7 +125,6 @@ contract VotableOwner {
       msg.data,
       actionNonce
     ));
-    emit Test(_actionId);
 
     require(!hasVoted[_actionId][msg.sender]);
 
