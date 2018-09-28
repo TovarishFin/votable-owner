@@ -68,7 +68,7 @@ contract VotableOwner {
   );
   event VoterVoted(
     address indexed voter,
-    bytes indexed callData,
+    bytes4 indexed funcSig,
     uint256 votes
   );
 
@@ -136,17 +136,17 @@ contract VotableOwner {
     actionVotes[_actionId]++;
     hasVoted[_actionId][msg.sender] = true;
 
+    emit VoterVoted(
+      msg.sender,
+      msg.sig,
+      actionVotes[_actionId]
+    );
+
     if (actionVotes[_actionId] >= minimumVotes) {
       actionNonce++;
 
       return true;
     }
-
-    emit VoterVoted(
-      msg.sender,
-      msg.data,
-      actionVotes[_actionId]
-    );
 
     return false;
   }
